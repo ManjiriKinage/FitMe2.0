@@ -62,3 +62,24 @@ class DashboardSummaryResponse(BaseModel):
     macro_totals: DailyMacroTotals
     macro_targets: Optional[Dict[str, float]] = None
     meals: Dict[MealType, List[FoodLogResponse]]
+
+class RecipeSearchResult(BaseModel):
+    source_recipe_code: str
+    name: str
+    normalized_name: str
+    reported_serving_unit: Optional[str] = "serving"
+    reported_serving_size_g: Optional[float] = 150.0
+    serving_energy_kcal: Optional[float] = None
+    reported_energy_kcal_per_100g: float
+    reported_protein_g_per_100g: float
+    reported_carbohydrates_g_per_100g: float
+    reported_fat_g_per_100g: float
+
+class FoodFeedbackRequest(BaseModel):
+    food_log_id: Optional[str] = None
+    food_name: str
+    original_calories: float
+    corrected_calories: float
+    corrected_quantity: Optional[float] = None
+    corrected_unit: Optional[str] = None
+    reason: Optional[str] = None

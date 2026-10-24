@@ -1,0 +1,333 @@
+source_food_code,name,normalized_name,aliases,food_state,energy_kcal_per_100g,protein_g_per_100g,carbohydrates_g_per_100g,fat_g_per_100g,fiber_g_per_100g,source_name,source_version,data_quality_status
+A001,"Amaranth seed, black (Amaranthus cruentus)",amaranth seed black amaranthus cruentus,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A003,Bajra (Pennisetum typhoideum),bajra pennisetum typhoideum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A005,Jowar (Sorghum vulgare),jowar sorghum vulgare,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A006,"Maize, dry (Zea mays)",maize dry zea mays,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A009,Quinoa (Chenopodium quinoa),quinoa chenopodium quinoa,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A010,Ragi (Eleusine coracana),ragi eleusine coracana,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A011,Rice flakes (Oryza sativa ),rice flakes oryza sativa,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A012,Rice puffed (Oryza sativa ),rice puffed oryza sativa,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A014,"Rice, parboiled, milled (Oryza sativa )",rice parboiled milled oryza sativa,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A018,"Wheat flour, refined (Triticum aestivum)",wheat flour refined triticum aestivum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A019,"Wheat flour, atta (Triticum aestivum)",wheat flour atta triticum aestivum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A022,"Wheat, semolina (Triticum aestivum)",wheat semolina triticum aestivum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A024,"Wheat, vermicelli, roasted (Triticum aestivum)",wheat vermicelli roasted triticum aestivum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A501,"Breakfast cereal, crunchy clusters type, without nuts, unfortified",breakfast cereal crunchy clusters type without nuts unfortified,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A502,"Couscous, plain, raw",couscous plain raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A503,"Flour, corn",flour corn,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A504,"Flour, gram",flour gram,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A505,"Flour, rice",flour rice,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A507,"Pasta, white, dried, raw",pasta white dried raw,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A508,"Porridge oats, unfortified",porridge oats unfortified,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A509,BLACK RICE,black rice,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A510,CRACKED WHEAT,cracked wheat,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A512,"SWEET SUNNAH, WHOLE BLACK SEEDS NIGELLA SATIVA",sweet sunnah whole black seeds nigella sativa,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A513,"ALMOND FLOUR, ALMOND",almond flour almond,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+A514,"Buckwheat, groats",buckwheat groats,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B001,"Bengal gram, dal (Cicer arietinum)",bengal gram dal cicer arietinum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B002,"Bengal gram, whole (Cicer arietinum)",bengal gram whole cicer arietinum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B003,"Black gram, dal (Phaseolus mungo)",black gram dal phaseolus mungo,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B004,"Black gram, whole (Phaseolus mungo)",black gram whole phaseolus mungo,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B005,"Cowpea, brown (Vigna catjang)",cowpea brown vigna catjang,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B010,"Green gram, dal (Vigna radiata)",green gram dal vigna radiata,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B011,"Green gram, whole (Vigna radiata)",green gram whole vigna radiata,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B012,"Horse gram, whole (Dolicus biflorus)",horse gram whole dolicus biflorus,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B013,Lentil dal (Lens culinaris),lentil dal lens culinaris,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B015,"Lentil whole, yellowish (Lens culinaris)",lentil whole yellowish lens culinaris,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B016,Moth bean (Vigna aconitifolia),moth bean vigna aconitifolia,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B020,"Rajmah, red (Phaseolus vulgaris)",rajmah red phaseolus vulgaris,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B021,"Red gram, dal (Cajanus cajan)",red gram dal cajanus cajan,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B025,"Soya bean, white (Glycine max)",soya bean white glycine max,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B500,"Beans, chick peas, Kabuli, whole, dried, raw",beans chick peas kabuli whole dried raw,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B501,"Beansprouts, mung, boiled in unsalted water",beansprouts mung boiled in unsalted water,[],raw,0.0,0.0,0.0,0.0,0.0,ICMR-NIN IFCT / recipes.xlsx,1.0,verified_zero
+B503,"Flour, soya",flour soya,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B504,"Peanut butter, smooth",peanut butter smooth,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B505,"Peanuts, dry roasted",peanuts dry roasted,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B506,"Tofu, soya bean, steamed",tofu soya bean steamed,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B507,BLACK BEANS,black beans,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B509,"Chickpeas (garbanzo beans, bengal gram), mature seeds, raw",chickpeas garbanzo beans bengal gram mature seeds raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+B511,ROASTED CHICKPEAS,roasted chickpeas,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+C004,"Amaranth leaves, red and green mix (Amaranthus gangeticus)",amaranth leaves red and green mix amaranthus gangeticus,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+C008,Bathua leaves (Chenopodium album),bathua leaves chenopodium album,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+C015,"Cabbage, green (Brassica oleracea var. capitata f. alba)",cabbage green brassica oleracea var capitata f alba,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+C020,Fenugreek leaves (Trigonella foenum graecum),fenugreek leaves trigonella foenum graecum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+C025,Lettuce (Lactuca sativa),lettuce lactuca sativa,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+C026,Mustard leaves (Brassica juncea),mustard leaves brassica juncea,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+C028,Parsley (Petroselinum crispum),parsley petroselinum crispum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+C031,Radish leaves (Raphanus sativus),radish leaves raphanus sativus,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+C033,Spinach (Spinacia oleracea),spinach spinacia oleracea,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+C500,"Broccoli, green, raw",broccoli green raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+C502,"Watercress, raw",watercress raw,[],raw,0.0,0.0,0.0,0.0,0.0,ICMR-NIN IFCT / recipes.xlsx,1.0,verified_zero
+D002,"Bamboo shoot, tender (Bambusa vulgaris)",bamboo shoot tender bambusa vulgaris,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D006,"Bitter gourd, jagged, smooth ridges, elongate (Momordica charantia)",bitter gourd jagged smooth ridges elongate momordica charantia,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D007,"Bottle gourd, elongate, pale green (Lagenaria vulgaris)",bottle gourd elongate pale green lagenaria vulgaris,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D031,Brinjal - all varieties (Solanum melongena),brinjal all varieties solanum melongena,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D033,"Capsicum, green (Capsicum annuum)",capsicum green capsicum annuum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D034,"Capsicum, red (Capsicum annuum)",capsicum red capsicum annuum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D036,Cauliflower (Brassica oleracea var. botrytis),cauliflower brassica oleracea var botrytis,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D037,Celery stalk (Apium graveolens),celery stalk apium graveolens,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D042,"Corn, Baby (Zea mays)",corn baby zea mays,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D043,"Cucumber, green, elongate (Cucumis sativus)",cucumber green elongate cucumis sativus,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D046,Drumstick (Moringa oleifera),drumstick moringa oleifera,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D050,"French beans, hybrid (Phaseolus vulgaris)",french beans hybrid phaseolus vulgaris,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D056,Ladies finger (Abelmoschus esculentus),ladies finger abelmoschus esculentus,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D057,"Mango, green, raw (Mangifera indica)",mango green raw mangifera indica,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D058,"Onion, stalk (Allium cepa)",onion stalk allium cepa,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D059,"Papaya, raw (Carica papaya)",papaya raw carica papaya,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D061,"Peas, fresh (Pisum sativum)",peas fresh pisum sativum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D066,"Pumpkin, orange, round (Cucurbita maxima)",pumpkin orange round cucurbita maxima,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D073,"Tinda, tender (Praecitrullus fistulosus)",tinda tender praecitrullus fistulosus,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D074,"Tomato, green (Solanum lycopersicum)",tomato green solanum lycopersicum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D075,"Tomato, ripe, hybrid (Solanum lycopersicum)",tomato ripe hybrid solanum lycopersicum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D091,"LOTUS STEM, dry",lotus stem dry,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D500,"Curly kale, raw",curly kale raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D501,"Spring onions, bulbs only, raw",spring onions bulbs only raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D502,"Tomatoes, cherry, raw",tomatoes cherry raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D503,"Sweetcorn, kernels, raw",sweetcorn kernels raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D504,"Olives, green, in brine, drained, flesh and skin",olives green in brine drained flesh and skin,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D505,"Gherkins, pickled, drained",gherkins pickled drained,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D506,"Pickle, sweet",pickle sweet,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D507,PITTED BLACK OLIVES,pitted black olives,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+D508,"Beans, broad, whole, raw",beans broad whole raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E001,"Apple, big (Malus domestica)",apple big malus domestica,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E005,"Apricot, dried (Prunus armeniaca)",apricot dried prunus armeniaca,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E006,"Apricot, processed (Prunus armeniaca)",apricot processed prunus armeniaca,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E009,"Banana, ripe, montham (Musa x paradisiaca)",banana ripe montham musa x paradisiaca,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E014,"Cherries, red (Prunus cerasus)",cherries red prunus cerasus,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E015,"Currants, black (Ribes nigrum)",currants black ribes nigrum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E017,"Dates, dry, pale brown (Phoenix dactylifera)",dates dry pale brown phoenix dactylifera,"[""DATES, dried""]",raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E019,"Dates, processed (Phoenix dactylifera)",dates processed phoenix dactylifera,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E022,"Grapes, seeded, round, black (Vitis vinifera)",grapes seeded round black vitis vinifera,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E023,"Grapes, seeded, round, green (Vitis vinifera)",grapes seeded round green vitis vinifera,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E028,"Guava, white flesh (Psidium guajava)",guava white flesh psidium guajava,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E030,"Jack fruit, ripe (Artocarpus heterophyllus)",jack fruit ripe artocarpus heterophyllus,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E033,"Lemon, juice (Citrus limon)",lemon juice citrus limon,[],liquid,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E034,"Lime, sweet,pulp (Citrus limetta)",lime sweet pulp citrus limetta,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E035,Litchi (Nephelium litchi),litchi nephelium litchi,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E036,"Mango, ripe, banganapalli (Mangifera indica)",mango ripe banganapalli mangifera indica,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E047,"Orange, pulp (Citrus aurantium)",orange pulp citrus aurantium,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E050,Peach (Prunus communis),peach prunus communis,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E051,Pear (Pyrus sp.),pear pyrus sp,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E053,Pineapple (Ananas comosus),pineapple ananas comosus,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E054,Plum (Prunus domestica),plum prunus domestica,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E055,"Pomegranate, maroon seeds (Punica granatum)",pomegranate maroon seeds punica granatum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E057,"Raisins, dried, black (Vitis vinifera)",raisins dried black vitis vinifera,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E062,Star fruit (Averrhoa carambola),star fruit averrhoa carambola,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E063,Strawberry (Fragaria x ananassa),strawberry fragaria x ananassa,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E064,"Tamarind, pulp (Tamarindus indica)",tamarind pulp tamarindus indica,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E067,Wood Apple (Limonia acidissima),wood apple limonia acidissima,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E500,Blueberries,blueberries,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E501,Cranberries,cranberries,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E502,"Kiwi fruit, flesh only, raw",kiwi fruit flesh only raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E503,"Bananas, raw, flesh only, weighed with skin",bananas raw flesh only weighed with skin,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E504,"Cherries, West Indian, flesh only",cherries west indian flesh only,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E505,"Redcurrants, raw",redcurrants raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E506,Sultanas,sultanas,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E507,Amla,amla,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E509,"Pears, canned in juice, whole contents",pears canned in juice whole contents,[],liquid,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E511,"Cherries, glace",cherries glace,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E513,"Raspberries, raw",raspberries raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E514,DRIED MANGO,dried mango,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E515,"Gooseberries, raw",gooseberries raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E516,"Fruit cocktail, canned in juice, whole contents",fruit cocktail canned in juice whole contents,"[""Fruit cocktail, canned in syrup, whole contents""]",liquid,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E518,"Orange juice, freshly squeezed",orange juice freshly squeezed,[],liquid,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+E520,"Lemons, flesh only, raw, weighed with peel and pips",lemons flesh only raw weighed with peel and pips,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+F001,Beet root (Beta vulgaris),beet root beta vulgaris,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+F002,"Carrot, orange (Daucus carota)",carrot orange daucus carota,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+F004,Colocasia (Colocasia esculenta),colocasia colocasia esculenta,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+F005,Lotus root (Nelumbium nelumbo),lotus root nelumbium nelumbo,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+F006,"Potato, brown skin, big (Solanum tuberosum)",potato brown skin big solanum tuberosum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+F009,"Radish, elongate, red skin (Raphanus sativus)",radish elongate red skin raphanus sativus,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+F010,"Radish, elongate, white skin (Raphanus sativus)",radish elongate white skin raphanus sativus,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+F013,"Sweet potato, brown skin (Ipomoea batatas)",sweet potato brown skin ipomoea batatas,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+F018,"Yam, ordinary (Amorphophallus sp.)",yam ordinary amorphophallus sp,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+F500,"Beetroot, raw",beetroot raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+F501,"Turnip, flesh only, raw",turnip flesh only raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G008,"Chillies, green - all varieties (Capsicum annum)",chillies green all varieties capsicum annum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G009,Coriander leaves (Coriandrum sativum),coriander leaves coriandrum sativum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G010,Curry leaves (Murraya koenigii),curry leaves murraya koenigii,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G012,"Garlic, small clove (Allium sativum)",garlic small clove allium sativum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G014,"Ginger, fresh (Zingiber officinale)",ginger fresh zingiber officinale,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G016,Mint leaves (Mentha spicata ),mint leaves mentha spicata,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G017,"Onion, big (Allium cepa)",onion big allium cepa,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G019,Asafoetida (Ferula assa-foetida),asafoetida ferula assa foetida,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G020,"Cardamom, green (Elettaria cardamomum)",cardamom green elettaria cardamomum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G021,"Cardamom, black (Elettaria cardamomum)",cardamom black elettaria cardamomum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G022,"Chillies, red (Capsicum annum)",chillies red capsicum annum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G023,Cloves (Syzygium aromaticum),cloves syzygium aromaticum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G024,Coriander seeds (Coriandrum sativum),coriander seeds coriandrum sativum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G025,Cumin seeds (Cuminum cyminum),cumin seeds cuminum cyminum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G026,Fenugreek seeds (Trigonella foenum graecum),fenugreek seeds trigonella foenum graecum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G027,Mace (Myristica fragrans),mace myristica fragrans,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G028,Nutmeg (Myristica fragrans),nutmeg myristica fragrans,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G031,"Pepper, black (Piper nigrum)",pepper black piper nigrum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G032,Poppy seeds (Papaver somniferum),poppy seeds papaver somniferum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G033,Turmeric powder (Curcuma domestica),turmeric powder curcuma domestica,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G509,"Agar, dried",agar dried,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G510,Fennel seeds,fennel seeds,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G511,"Basil, dried, ground",basil dried ground,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G512,"Bay leaf, dried",bay leaf dried,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G513,Sesame seeds,sesame seeds,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G515,Mixed curry spices,mixed curry spices,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G516,Chilli powder,chilli powder,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G517,Chilli sauce,chilli sauce,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G518,"Cinnamon, ground",cinnamon ground,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G520,Curry powder,curry powder,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G521,"Mixed herbs, dried",mixed herbs dried,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G523,Garam masala,garam masala,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G524,Garlic powder,garlic powder,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G525,"Rosemary, dried",rosemary dried,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G526,"Oregano, dried, ground",oregano dried ground,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G527,"Pepper, white",pepper white,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G528,Salt,salt,[],raw,0.0,0.0,0.0,0.0,0.0,ICMR-NIN IFCT / recipes.xlsx,1.0,verified_zero
+G529,Saffron,saffron,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G531,"Thyme, dried, ground",thyme dried ground,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G532,Vinegar,vinegar,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G533,Mustard powder,mustard powder,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G534,Yeast extract,yeast extract,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G535,"SIVA'S, AMHUR POWDER (DRY MANGO POWDER)",siva s amhur powder dry mango powder,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G536,AJWAIN SEED WHOLE ORGANIC SPICES,ajwain seed whole organic spices,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G537,STAR ANISE,star anise,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G538,"Vinegar, distilled",vinegar distilled,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G539,BALSAMIC VINEGAR,balsamic vinegar,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G540,HIMALAYAN BLACK SALT,himalayan black salt,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G541,MSG MONOSODIUM GLUTAMATE,msg monosodium glutamate,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G542,"Capers, canned",capers canned,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G543,RICE VINEGAR,rice vinegar,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G544,Vanilla extract,vanilla extract,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G545,Paprika,paprika,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G546,"Shallots, raw",shallots raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G547,"Spring onions, bulbs and tops, raw",spring onions bulbs and tops raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G548,"GINGER JUICE, GINGER",ginger juice ginger,[],liquid,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G549,"Peppers, jalapeno, raw",peppers jalapeno raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G550,"Lemon peel, raw",lemon peel raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G551,"Lemon grass (citronella), raw",lemon grass citronella raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G552,"Orange peel, raw",orange peel raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G554,"Ginger, ground",ginger ground,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+G555,"Spices, onion powder",spices onion powder,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H001,Almond (Prunus amygdalus),almond prunus amygdalus,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H005,Cashew nut (Anacardium occidentale),cashew nut anacardium occidentale,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H006,"Coconut, kernal, dry (Cocos nucifera)",coconut kernal dry cocos nucifera,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H007,"Coconut, kernel, fresh (Cocos nucifera)",coconut kernel fresh cocos nucifera,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H011,"Gingelly seeds, white (Sesamum indicum)",gingelly seeds white sesamum indicum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H012,Ground nut (Arachis hypogea),ground nut arachis hypogea,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H013,Mustard seeds (Brassica nigra),mustard seeds brassica nigra,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H017,Pine seed (Pinus sp.),pine seed pinus sp,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H018,Pistachio nuts (Pistacla vera),pistachio nuts pistacla vera,"[""Pumpkin seeds""]",raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H020,Sunflower seeds (Helianthus annuus),sunflower seeds helianthus annuus,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H021,Walnut (Juglans regia),walnut juglans regia,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H500,Melon seeds,melon seeds,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H501,Coconut milk,coconut milk,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H502,"Hazelnuts, kernel only",hazelnuts kernel only,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H503,"Seeds, lotus seeds, dried",seeds lotus seeds dried,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H505,"MIXED NUTS CASHEWS, ALMONDS, HAZELNUTS, PISTACHIOS, PECANS, MIXED NUTS",mixed nuts cashews almonds hazelnuts pistachios pecans mixed nuts,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H506,Chia seeds,chia seeds,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H507,ALMOND MILK,almond milk,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+H508,"Nuts, coconut water (liquid from coconuts)",nuts coconut water liquid from coconuts,[],raw,0.0,0.0,0.0,0.0,0.0,ICMR-NIN IFCT / recipes.xlsx,1.0,verified_zero
+I001,"Jaggery, cane (Saccharum officinarum)",jaggery cane saccharum officinarum,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+I501,"Ice cream, dairy, vanilla, soft scoop",ice cream dairy vanilla soft scoop,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+I502,"Sugar, white",sugar white,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+I503,"Sugar, brown",sugar brown,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+I504,"Sugar, icing",sugar icing,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+I505,"Syrup, corn, dark",syrup corn dark,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+I507,Honey,honey,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+I508,"Sago, raw",sago raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+I509,"Chocolate, plain",chocolate plain,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+I510,"Candies, gum drops, no sugar or low calorie (sorbitol)",candies gum drops no sugar or low calorie sorbitol,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+I511,"TUTTI FRUTTI GUMBALLS, TUTTI FRUTTI",tutti frutti gumballs tutti frutti,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+J001,"Button mushroom, fresh (Agaricus sp.)",button mushroom fresh agaricus sp,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+K500,Baking powder,baking powder,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+K501,Bicarbonate of soda,bicarbonate of soda,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+K502,"Spirits, 40% volume",spirits 40 volume,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+K503,Custard powder,custard powder,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+K504,Gelatine,gelatine,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+K505,"Water, distilled",water distilled,"["" Water, distilled""]",raw,0.0,0.0,0.0,0.0,0.0,ICMR-NIN IFCT / recipes.xlsx,1.0,verified_zero
+K506,"Stock cubes, chicken",stock cubes chicken,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+K507,"Stock cubes, vegetable",stock cubes vegetable,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L002,"Milk, whole, Cow",milk whole cow,"[""Milk, Cow""]",raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L003,Paneer,paneer,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L004,Khoa,khoa,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L500,"Cheese, Cheddar, English",cheese cheddar english,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L501,"Cheese spread, cream cheese, regular",cheese spread cream cheese regular,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L502,"Cheese, cottage, plain",cheese cottage plain,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L503,"Cheese, Mozzarella, fresh",cheese mozzarella fresh,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L505,"Cheese, processed, plain",cheese processed plain,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L506,"Cheese, Feta",cheese feta,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L507,"Mayonnaise, standard, retail",mayonnaise standard retail,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L508,"Milk, condensed, whole, sweetened",milk condensed whole sweetened,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L509,"Milk, evaporated, light",milk evaporated light,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L510,"Milk, skimmed, dried, fortified",milk skimmed dried fortified,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L511,"Cheese, Ricotta",cheese ricotta,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L512,"Cream, fresh, whipping",cream fresh whipping,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L513,"Cheese, provolone",cheese provolone,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L514,"Sour cream, regular",sour cream regular,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L515,"Cream, fluid, light (coffee cream or table cream)",cream fluid light coffee cream or table cream,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L516,"Milk, dry, nonfat, regular, without added vitamin A and vitamin D",milk dry nonfat regular without added vitamin a and vitamin d,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L517,"Whey, acid, fluid",whey acid fluid,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L518,"Cheese, cream, low fat",cheese cream low fat,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L519,"Cream, fresh, single",cream fresh single,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L520,"Yogurt, whole milk, plain",yogurt whole milk plain,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+L521,"Milk, buttermilk, fluid, whole",milk buttermilk fluid whole,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+M001,"Egg, poultry, whole, raw",egg poultry whole raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+M002,"Egg, poultry, white, raw",egg poultry white raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+M003,"Egg, poultry, yolk, raw",egg poultry yolk raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+N003,"Chicken, poultry, breast, skinless",chicken poultry breast skinless,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+N500,"Chicken, whole, corn-fed, raw, meat and skin, weighed with bone",chicken whole corn fed raw meat and skin weighed with bone,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+O064,"MUTTON, muscle",mutton muscle,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+O500,"Bacon rashers, back, raw",bacon rashers back raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+O501,Ham,ham,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+O502,"Lamb, mince, raw",lamb mince raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+O503,Salami,salami,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+O504,"Sausages, premium, raw",sausages premium raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+P034,Mackerel (Rastrelliger kanagurta),mackerel rastrelliger kanagurta,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+P057,"Pomfret, white (Pampus argenteus)",pomfret white pampus argenteus,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+Q007,"Tiger prawns, brown (Solenocera crassicornis)",tiger prawns brown solenocera crassicornis,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+S006,Rohu (Labeo rohita),rohu labeo rohita,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+T500,"Butter, salted",butter salted,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+T501,"Butter, unsalted",butter unsalted,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+T502,"Oil, olive",oil olive,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+T504,MARGARINE,margarine,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+T506,"Ghee, butter",ghee butter,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+T507,"Oil, coconut",oil coconut,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+T508,"Oil, sunflower",oil sunflower,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+T509,"Oil, sesame",oil sesame,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+T510,"Oil, mustard",oil mustard,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+U500,"Biscuits, digestive, plain",biscuits digestive plain,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+U501,"Bread, brown, average",bread brown average,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+U502,"Bread, brown, toasted",bread brown toasted,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+U505,Cream of tartar,cream of tartar,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+U506,HOT DOG BUNS,hot dog buns,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+U507,WHITE HAMBURGER BUNS,white hamburger buns,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+U508,WHOLE WHEAT HAMBURGER BUNS,whole wheat hamburger buns,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+U509,"Wafers, plain ice cream wafers, not filled",wafers plain ice cream wafers not filled,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+U511,"Bread, white, average",bread white average,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+V500,"Apple juice, clear, ambient and chilled",apple juice clear ambient and chilled,[],liquid,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+V501,Cocoa powder,cocoa powder,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+V502,"Coffee, powder, instant",coffee powder instant,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+V503,Cola,cola,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+V504,"Drinking chocolate, powder",drinking chocolate powder,[],dried,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+V505,"Energy drink, carbonated",energy drink carbonated,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+V508,"Fruit juice drink/squash, undiluted",fruit juice drink squash undiluted,[],liquid,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+V509,"Pineapple juice, unsweetened",pineapple juice unsweetened,[],liquid,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+V510,"Tea, black, infusion, average",tea black infusion average,[],liquid,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+V511,"Tea, green, infusion",tea green infusion,[],liquid,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+W501,"Jelly, made with water",jelly made with water,[],raw,0.0,0.0,0.0,0.0,0.0,ICMR-NIN IFCT / recipes.xlsx,1.0,verified_zero
+W502,Marmalade,marmalade,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+W504,JAM,jam,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+W505,STRAWBERRY JAM,strawberry jam,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+X500,"Sauces, Indian cook in, other",sauces indian cook in other,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+X501,"Soy sauce, light and dark varieties",soy sauce light and dark varieties,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+X503,Tomato ketchup,tomato ketchup,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+X504,Tomato puree,tomato puree,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+X505,"Tomato sauce, homemade",tomato sauce homemade,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+X506,"White sauce, savoury, made with whole milk, homemade",white sauce savoury made with whole milk homemade,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+X507,Worcestershire sauce,worcestershire sauce,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+X508,"Dips, sour-cream based, assorted flavours",dips sour cream based assorted flavours,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+X509,"Dressing, thousand island",dressing thousand island,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+X510,"Dressing, French",dressing french,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+X512,"Mint sauce, homemade",mint sauce homemade,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+X513,"Pizza base, raw",pizza base raw,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+X514,MUSTARD SAUCE,mustard sauce,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+X515,"DIJON MUSTARD, DIJON",dijon mustard dijon,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+X517,"CAJUN SEASONING, CAJUN",cajun seasoning cajun,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured
+X518,CREAMED CORN,creamed corn,[],raw,,,,,,ICMR-NIN IFCT / recipes.xlsx,1.0,reference_ifct_unmeasured

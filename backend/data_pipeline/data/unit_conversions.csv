@@ -1,0 +1,27 @@
+unit_name,category,gram_factor,notes,source
+g,weight,1.0,Standard culinary conversion,Units.xlsx / Metric Standard
+gm,weight,1.0,Standard culinary conversion,Units.xlsx / Metric Standard
+grams,weight,1.0,Standard culinary conversion,Units.xlsx / Metric Standard
+gram,weight,1.0,Standard culinary conversion,Units.xlsx / Metric Standard
+kg,weight,1000.0,Standard culinary conversion,Units.xlsx / Metric Standard
+ml,volume,1.0,Standard culinary conversion,Units.xlsx / Metric Standard
+milliliter,weight,1.0,Standard culinary conversion,Units.xlsx / Metric Standard
+l,volume,1000.0,Standard culinary conversion,Units.xlsx / Metric Standard
+liter,weight,1000.0,Standard culinary conversion,Units.xlsx / Metric Standard
+litre,weight,1000.0,Standard culinary conversion,Units.xlsx / Metric Standard
+tsp,volume,5.0,Standard culinary conversion,Units.xlsx / Metric Standard
+teaspoon,weight,5.0,Standard culinary conversion,Units.xlsx / Metric Standard
+tbsp,volume,15.0,Standard culinary conversion,Units.xlsx / Metric Standard
+tablespoon,weight,15.0,Standard culinary conversion,Units.xlsx / Metric Standard
+c,volume,240.0,Standard culinary conversion,Units.xlsx / Metric Standard
+cup,volume,240.0,Standard culinary conversion,Units.xlsx / Metric Standard
+sprig,weight,1.5,Standard culinary conversion,Units.xlsx / Metric Standard
+pinch,weight,0.5,Standard culinary conversion,Units.xlsx / Metric Standard
+dash,weight,0.5,Standard culinary conversion,Units.xlsx / Metric Standard
+drop,weight,0.05,Standard culinary conversion,Units.xlsx / Metric Standard
+drops,weight,0.05,Standard culinary conversion,Units.xlsx / Metric Standard
+knob,weight,20.0,Standard culinary conversion,Units.xlsx / Metric Standard
+blob,weight,15.0,Standard culinary conversion,Units.xlsx / Metric Standard
+ounce,weight,28.35,Standard culinary conversion,Units.xlsx / Metric Standard
+oz,weight,28.35,Standard culinary conversion,Units.xlsx / Metric Standard
+slice,weight,25.0,Standard culinary conversion,Units.xlsx / Metric Standard
