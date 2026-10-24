@@ -284,15 +284,23 @@ ALTER TABLE public.unit_conversions ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Public can view ingredients" ON public.ingredients;
 CREATE POLICY "Public can view ingredients" ON public.ingredients FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public can manage ingredients" ON public.ingredients;
+CREATE POLICY "Public can manage ingredients" ON public.ingredients FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Public can view recipes" ON public.recipes;
 CREATE POLICY "Public can view recipes" ON public.recipes FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public can manage recipes" ON public.recipes;
+CREATE POLICY "Public can manage recipes" ON public.recipes FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Public can view recipe ingredients" ON public.recipe_ingredients;
 CREATE POLICY "Public can view recipe ingredients" ON public.recipe_ingredients FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public can manage recipe ingredients" ON public.recipe_ingredients;
+CREATE POLICY "Public can manage recipe ingredients" ON public.recipe_ingredients FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Public can view unit conversions" ON public.unit_conversions;
 CREATE POLICY "Public can view unit conversions" ON public.unit_conversions FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public can manage unit conversions" ON public.unit_conversions;
+CREATE POLICY "Public can manage unit conversions" ON public.unit_conversions FOR ALL USING (true) WITH CHECK (true);
 
 -- User-specific tables: Private read and write by owner
 ALTER TABLE public.user_food_preferences ENABLE ROW LEVEL SECURITY;
