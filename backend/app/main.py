@@ -16,20 +16,40 @@ app = FastAPI(
     version="1.0.0"
 )
 
+import logging
+from fastapi.responses import JSONResponse
+from fastapi import Request
+from postgrest.exceptions import APIError
+
+logger = logging.getLogger(__name__)
+
 # Configure CORS
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    settings.FRONTEND_URL
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
 ]
+if settings.FRONTEND_URL and settings.FRONTEND_URL not in origins:
+    origins.append(settings.FRONTEND_URL)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins if origins else ["*"],
+    allow_origins=origins,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(APIError)
+async def postgrest_api_error_handler(request: Request, exc: APIError):
+    logger.error(f"PostgREST error on {request.url.path}: {exc}")
+    detail = exc.message if hasattr(exc, "message") else str(exc)
+    return JSONResponse(
+        status_code=400,
+        content={"detail": detail}
+    )
 
 # Register API Routers
 app.include_router(auth_router, prefix="/api")

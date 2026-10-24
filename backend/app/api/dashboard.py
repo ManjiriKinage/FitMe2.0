@@ -22,7 +22,7 @@ async def get_dashboard(
     - Macronutrient totals & targets
     - Meals grouped by breakfast, lunch, dinner, snack
     """
-    client = get_supabase_admin_client() or get_supabase_anon_client()
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
     if not client:
         raise HTTPException(status_code=500, detail="Database client not configured.")
 

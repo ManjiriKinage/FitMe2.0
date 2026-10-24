@@ -12,7 +12,7 @@ router = APIRouter(prefix="/goals", tags=["Goals & Recalculation"])
 @router.get("")
 async def get_current_goals(user: Dict[str, Any] = Depends(get_current_user)):
     """Fetches user's current goal parameters and calorie target."""
-    client = get_supabase_admin_client() or get_supabase_anon_client()
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
     if not client:
         raise HTTPException(status_code=500, detail="Database client not configured.")
 
@@ -48,7 +48,7 @@ async def update_goals_and_recalculate(
     and returns a comparison between old and new targets.
     Crucially preserves all existing historical food logs.
     """
-    client = get_supabase_admin_client() or get_supabase_anon_client()
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
     if not client:
         raise HTTPException(status_code=500, detail="Database client not configured.")
 

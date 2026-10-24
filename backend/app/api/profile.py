@@ -11,7 +11,7 @@ router = APIRouter(prefix="/profile", tags=["Profile"])
 @router.get("", response_model=ProfileResponse)
 async def get_profile(user: Dict[str, Any] = Depends(get_current_user)):
     """Fetch the authenticated user's profile."""
-    client = get_supabase_admin_client() or get_supabase_anon_client()
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
     if not client:
         raise HTTPException(status_code=500, detail="Database client not configured.")
 
@@ -30,7 +30,7 @@ async def create_profile(
     Creates the user's profile and automatically calculates initial daily calorie recommendations.
     Prevents duplicate profile creation.
     """
-    client = get_supabase_admin_client() or get_supabase_anon_client()
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
     if not client:
         raise HTTPException(status_code=500, detail="Database client not configured.")
 
@@ -80,7 +80,7 @@ async def update_profile(
     user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Updates general profile info."""
-    client = get_supabase_admin_client() or get_supabase_anon_client()
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
     if not client:
         raise HTTPException(status_code=500, detail="Database client not configured.")
 

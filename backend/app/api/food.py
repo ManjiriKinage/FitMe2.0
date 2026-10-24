@@ -36,7 +36,7 @@ async def get_food_logs(
     user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Fetches food logs for the authenticated user, optionally filtered by local date."""
-    client = get_supabase_admin_client() or get_supabase_anon_client()
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
     if not client:
         raise HTTPException(status_code=500, detail="Database client not configured.")
 
@@ -60,7 +60,7 @@ async def create_food_log(
     Saves a food entry into the food_logs table.
     Ensures user ID is securely verified from authentication token.
     """
-    client = get_supabase_admin_client() or get_supabase_anon_client()
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
     if not client:
         raise HTTPException(status_code=500, detail="Database client not configured.")
 
@@ -92,7 +92,7 @@ async def delete_food_log(
     user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Deletes a specific food log owned by the user."""
-    client = get_supabase_admin_client() or get_supabase_anon_client()
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
     if not client:
         raise HTTPException(status_code=500, detail="Database client not configured.")
 
