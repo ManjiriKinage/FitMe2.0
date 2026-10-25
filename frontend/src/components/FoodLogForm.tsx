@@ -13,7 +13,8 @@ import {
   Info,
   Flame,
   ArrowRight,
-  Layers
+  Layers,
+  AlertTriangle
 } from "lucide-react";
 
 interface FoodLogFormProps {
@@ -49,11 +50,11 @@ export default function FoodLogForm({
   // Quick suggestions for rapid testing
   const quickExamples = [
     "2 medium chapatis",
-    "1 bowl of dal",
-    "1 plate of poha",
-    "1 cup of cooked rice",
-    "2 chapatis and 1 bowl of dal",
-    "2 boiled eggs with 1 slice toast"
+    "2 big bajra bhakri",
+    "1 bowl rice",
+    "1 bowl dal",
+    "1 plate poha",
+    "2 medium chapatis and 1 bowl dal"
   ];
 
   const handleEstimate = async (searchQuery?: string) => {
@@ -199,7 +200,7 @@ export default function FoodLogForm({
                     handleEstimate();
                   }
                 }}
-                placeholder="e.g. 2 medium chapatis with 1 bowl moong dal"
+                placeholder="e.g. 2 medium chapatis, 2 big bajra bhakri, or 1 bowl rice"
                 className="flex-1 px-3.5 py-2.5 bg-cream/70 rounded-xl border border-charcoal/10 focus:border-sage focus:ring-2 focus:ring-sage/20 outline-none text-charcoal text-xs"
               />
               <button
@@ -222,10 +223,16 @@ export default function FoodLogForm({
               </button>
             </div>
 
+            {/* User guidance tip */}
+            <p className="text-[10px] text-charcoal/60 mt-1.5 flex items-center gap-1">
+              <span className="font-bold text-sage">💡 Tip:</span>
+              <span>Include portion & size (e.g. <em>medium chapati</em>, <em>big bajra bhakri</em>, <em>1 bowl rice</em>) for precise nutrition.</span>
+            </p>
+
             {/* Quick suggestions pills */}
             <div className="mt-2 flex flex-wrap gap-1.5 items-center">
-              <span className="text-[10px] text-charcoal/50 mr-0.5">Try:</span>
-              {quickExamples.slice(0, 4).map((ex) => (
+              <span className="text-[10px] text-charcoal/50 mr-0.5 font-medium">Quick examples:</span>
+              {quickExamples.map((ex) => (
                 <button
                   key={ex}
                   type="button"
@@ -233,7 +240,7 @@ export default function FoodLogForm({
                     setQuery(ex);
                     handleEstimate(ex);
                   }}
-                  className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-cream hover:bg-mint text-charcoal/75 border border-charcoal/5 transition"
+                  className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-cream hover:bg-mint text-charcoal/80 border border-charcoal/10 hover:border-sage/40 transition shadow-xs"
                 >
                   {ex}
                 </button>
@@ -296,7 +303,18 @@ export default function FoodLogForm({
                   <Check className="w-3.5 h-3.5 text-sage" />
                   {hasMultipleItems ? "Total Summary" : "Review & Edit Before Saving"}
                 </span>
-                <span className="text-[10px] text-charcoal/50">Inputs are editable</span>
+                <div className="flex items-center gap-2">
+                  {estimateData.validation_status === "needs_review" ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 text-amber-700" /> Needs Review
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      ✓ Verified
+                    </span>
+                  )}
+                  <span className="text-[10px] text-charcoal/50">Inputs are editable</span>
+                </div>
               </div>
 
               {/* Editable Fields */}
@@ -386,19 +404,31 @@ export default function FoodLogForm({
               </div>
 
               {/* Assumptions & Uncertainty Box */}
-              <div className="p-2.5 rounded-xl bg-cream/70 border border-charcoal/5 text-[11px] text-charcoal/75 space-y-1">
-                <div className="flex items-start gap-1.5">
-                  <Info className="w-3.5 h-3.5 text-sage flex-shrink-0 mt-0.5" />
-                  <p>
-                    <strong className="text-charcoal">Preparation Assumption:</strong> {estimateData.assumptions}
+              {estimateData.validation_status === "needs_review" || estimateData.uncertainty_note?.includes("NEEDS REVIEW") || estimateData.uncertainty_note?.includes("FLAGGED") ? (
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                    <AlertTriangle className="w-4 h-4 text-amber-700 flex-shrink-0" />
+                    <span>⚠️ Uncalibrated Dish (Pending Culinary Review)</span>
+                  </div>
+                  <p className="text-[10px] text-amber-800 leading-relaxed pl-5">
+                    {estimateData.uncertainty_note || "This recipe contains an unverified frying-oil medium or uncalibrated macronutrients. Nutrition values are pending culinary review and should be adjusted manually if needed."}
                   </p>
                 </div>
-                {estimateData.uncertainty_note && (
-                  <p className="text-[10px] text-charcoal/60 pl-5">
-                    {estimateData.uncertainty_note}
-                  </p>
-                )}
-              </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-cream/70 border border-charcoal/5 text-[11px] text-charcoal/75 space-y-1">
+                  <div className="flex items-start gap-1.5">
+                    <Info className="w-3.5 h-3.5 text-sage flex-shrink-0 mt-0.5" />
+                    <p>
+                      <strong className="text-charcoal">Preparation Assumption:</strong> {estimateData.assumptions}
+                    </p>
+                  </div>
+                  {estimateData.uncertainty_note && (
+                    <p className="text-[10px] text-charcoal/60 pl-5">
+                      {estimateData.uncertainty_note}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

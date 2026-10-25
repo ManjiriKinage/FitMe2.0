@@ -22,19 +22,21 @@ logger = logging.getLogger(__name__)
 
 # Standard Indian Household Serving Weights (g or ml)
 DISH_SPECIFIC_SERVINGS: Dict[str, Dict[str, float]] = {
-    "chapati": {"piece": 35.0, "medium piece": 35.0, "large piece": 50.0, "serving": 70.0}, # 2 chapatis = 70g
-    "roti": {"piece": 35.0, "medium piece": 35.0, "serving": 70.0},
-    "paratha": {"piece": 75.0, "medium piece": 75.0, "serving": 75.0},
-    "puri": {"piece": 25.0, "serving": 100.0},
-    "dal": {"bowl": 150.0, "katori": 150.0, "cup": 180.0, "serving": 150.0},
-    "sambar": {"bowl": 150.0, "katori": 150.0, "cup": 180.0, "serving": 150.0},
-    "poha": {"plate": 200.0, "bowl": 150.0, "katori": 120.0, "serving": 200.0},
-    "upma": {"plate": 200.0, "bowl": 150.0, "katori": 120.0, "serving": 200.0},
-    "rice": {"cup": 150.0, "bowl": 150.0, "plate": 250.0, "serving": 150.0},
-    "khichdi": {"bowl": 180.0, "plate": 250.0, "serving": 200.0},
-    "biryani": {"plate": 300.0, "bowl": 200.0, "serving": 300.0},
-    "idli": {"piece": 40.0, "serving": 80.0}, # 2 idlis = 80g
-    "dosa": {"piece": 100.0, "serving": 100.0},
+    "chapati": {"small": 25.0, "medium": 35.0, "big": 50.0, "large": 50.0, "piece": 35.0, "serving": 70.0},
+    "roti": {"small": 25.0, "medium": 35.0, "big": 50.0, "large": 50.0, "piece": 35.0, "serving": 70.0},
+    "bhakri": {"small": 40.0, "medium": 60.0, "big": 90.0, "large": 90.0, "piece": 60.0, "serving": 60.0},
+    "bajara bhakari": {"small": 40.0, "medium": 60.0, "big": 90.0, "large": 90.0, "piece": 60.0, "serving": 60.0},
+    "paratha": {"small": 50.0, "medium": 75.0, "big": 100.0, "large": 100.0, "piece": 75.0, "serving": 75.0},
+    "puri": {"small": 15.0, "medium": 25.0, "large": 35.0, "piece": 25.0, "serving": 100.0},
+    "dal": {"small": 100.0, "medium": 150.0, "large": 200.0, "bowl": 150.0, "katori": 150.0, "cup": 180.0, "serving": 150.0},
+    "sambar": {"small": 100.0, "medium": 150.0, "large": 200.0, "bowl": 150.0, "katori": 150.0, "cup": 180.0, "serving": 150.0},
+    "poha": {"small": 120.0, "medium": 180.0, "large": 250.0, "plate": 200.0, "bowl": 150.0, "katori": 120.0, "serving": 200.0},
+    "upma": {"small": 120.0, "medium": 180.0, "large": 250.0, "plate": 200.0, "bowl": 150.0, "katori": 120.0, "serving": 200.0},
+    "rice": {"small": 100.0, "medium": 150.0, "large": 250.0, "cup": 150.0, "bowl": 150.0, "plate": 250.0, "serving": 150.0},
+    "khichdi": {"small": 120.0, "medium": 180.0, "large": 250.0, "bowl": 180.0, "plate": 250.0, "serving": 200.0},
+    "biryani": {"small": 180.0, "medium": 250.0, "large": 350.0, "plate": 300.0, "bowl": 200.0, "serving": 300.0},
+    "idli": {"small": 30.0, "medium": 45.0, "large": 60.0, "piece": 40.0, "serving": 80.0},
+    "dosa": {"small": 60.0, "medium": 100.0, "large": 150.0, "piece": 100.0, "serving": 100.0},
     "paneer": {"bowl": 150.0, "katori": 120.0, "serving": 150.0},
     "curry": {"bowl": 160.0, "katori": 130.0, "serving": 160.0},
     "sabzi": {"bowl": 140.0, "katori": 120.0, "serving": 140.0},
@@ -99,6 +101,11 @@ def resolve_serving_weight(food_name: str, quantity: float, unit: str) -> Tuple[
     # 2. Check dish-specific standard dictionary
     for dish_key, unit_dict in DISH_SPECIFIC_SERVINGS.items():
         if dish_key in clean_name:
+            # Check if food name explicitly mentions size (e.g. 'big bajara bhakari', 'medium chapati')
+            for sz in ["small", "medium", "big", "large"]:
+                if sz in clean_name and sz in unit_dict:
+                    return round(unit_dict[sz] * quantity, 1), True
+
             for u_key, gram_val in unit_dict.items():
                 if clean_unit == u_key or clean_unit.startswith(u_key):
                     return round(gram_val * quantity, 1), True

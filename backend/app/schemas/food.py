@@ -18,11 +18,14 @@ class ParsedFoodItem(BaseModel):
     fat_g: float = Field(0.0, ge=0)
     fiber_g: Optional[float] = None
     serving_weight_g: Optional[float] = None
-    nutrition_source: str = "indb_verified_recipe"
-    calculation_method: str = "deterministic_indb_serving"
+    nutrition_source: str = "nutrition_profile"
+    calculation_method: str = "deterministic_per_100g_scaled"
+    validation_status: str = "verified"
     clarification_question: Optional[str] = None
     uncertainty_note: Optional[str] = None
     assumptions: Optional[str] = None
+    food_id: Optional[str] = None
+    profile_id: Optional[str] = None
 
 class AIEstimateResponse(BaseModel):
     food_name: str
@@ -38,6 +41,9 @@ class AIEstimateResponse(BaseModel):
     items: Optional[List[ParsedFoodItem]] = None
     has_ambiguity: bool = False
     needs_user_confirmation: bool = True
+    validation_status: str = "verified"
+    food_id: Optional[str] = None
+    profile_id: Optional[str] = None
 
 class FoodLogCreate(BaseModel):
     food_name: str = Field(..., min_length=1, max_length=150)
@@ -49,6 +55,8 @@ class FoodLogCreate(BaseModel):
     fat_g: float = Field(0.0, ge=0)
     meal_type: MealType
     logged_at: Optional[datetime] = None
+    food_id: Optional[str] = None
+    profile_id: Optional[str] = None
 
 class FoodLogUpdate(BaseModel):
     food_name: Optional[str] = Field(None, min_length=1, max_length=150)
@@ -60,6 +68,8 @@ class FoodLogUpdate(BaseModel):
     fat_g: Optional[float] = Field(None, ge=0)
     meal_type: Optional[MealType] = None
     logged_at: Optional[datetime] = None
+    food_id: Optional[str] = None
+    profile_id: Optional[str] = None
 
 class FoodLogResponse(BaseModel):
     id: str
@@ -74,6 +84,8 @@ class FoodLogResponse(BaseModel):
     meal_type: MealType
     logged_at: datetime
     created_at: Optional[datetime] = None
+    food_id: Optional[str] = None
+    profile_id: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

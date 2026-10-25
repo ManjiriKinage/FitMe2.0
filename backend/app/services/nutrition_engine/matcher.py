@@ -44,19 +44,64 @@ COMMON_UNITS = [
     "medium piece", "large piece", "small piece",
     "tea cup", "tall glass",
     "katori", "bowl", "plate", "cup", "glass",
-    "piece", "chapati", "roti", "phulka", "slice",
+    "piece", "chapati", "roti", "phulka", "bhakri", "slice",
     "tablespoon", "tbsp", "teaspoon", "tsp",
     "grams", "gram", "gm", "g", "ml", "serving"
 ]
 
+DISH_FAMILIES: Dict[str, set] = {
+    "flatbread": {"bhakri", "bhakhri", "roti", "rotli", "chapati", "phulka", "paratha", "thepla", "naan", "kulcha", "puri", "poori", "bhatura"},
+    "sweet_dessert": {"ladoo", "laddu", "halwa", "kheer", "barfi", "pedha", "peda", "jamun", "sheera", "mithai", "sweet", "payasam"},
+    "crepe_pancake": {"dosa", "dosai", "cheela", "chilla", "uttapam", "pancake"},
+    "savory_snack": {"mathri", "namak para", "pakora", "pakoda", "vada", "vadai", "samosa", "kachori", "cutlet", "bonda", "tikki"},
+    "infant_food": {"infant food", "shishu aahaar", "baby food", "weaning food"},
+    "rice_grain": {"rice", "pulao", "biryani", "khichdi", "fried rice"},
+    "lentil_curry": {"dal", "sambar", "curry", "sabzi", "gravy", "rasam", "saag", "kofta"},
+}
+
 
 def normalize_text(text: str) -> str:
-    """Normalize input text: lowercase, strip punctuation, remove excessive whitespace."""
+    """Normalize input text: lowercase, replace underscores/hyphens with space, strip punctuation."""
     if not text:
         return ""
     s = text.lower()
+    s = s.replace("_", " ").replace("-", " ")
     s = re.sub(r"[^\w\s]", " ", s)
     return re.sub(r"\s+", " ", s).strip()
+
+
+def get_dish_families(text: str) -> set:
+    """Identifies the culinary dish families represented in a food expression."""
+    norm = normalize_text(text)
+    words = set(norm.split())
+    families = set()
+    for fam, terms in DISH_FAMILIES.items():
+        for term in terms:
+            if " " in term:
+                if term in norm:
+                    families.add(fam)
+                    break
+            elif term in words:
+                families.add(fam)
+                break
+    return families
+
+
+def are_dish_families_incompatible(query: str, target: str) -> bool:
+    """
+    Returns True if the query explicitly specifies a dish family and the target
+    belongs to a conflicting dish family.
+    e.g. 'bajra bhakri' (flatbread) vs 'pearl millet ladoo' (sweet_dessert) -> True (incompatible!)
+         'jowar bhakri' (flatbread) vs 'jowar dosa' (crepe_pancake) -> True (incompatible!)
+    """
+    q_fams = get_dish_families(query)
+    if not q_fams:
+        return False
+    t_fams = get_dish_families(target)
+    if not t_fams:
+        return False
+    # Incompatible if query and target belong to disjoint dish families
+    return len(q_fams.intersection(t_fams)) == 0
 
 
 def split_multi_item_description(raw_text: str) -> List[str]:
@@ -114,7 +159,14 @@ def parse_item_portion(item_text: str) -> Tuple[float, str, str]:
             qty = float(val_str)
         text = text[num_match.end():].strip()
 
-    # 3. Check for serving units
+    # 3. Check for size modifier (e.g. 'medium chapatis', 'big bajra bhakri', 'small bowl dal')
+    size_modifier = None
+    size_match = re.match(r"^(small|medium|big|large)\s+", text, flags=re.IGNORECASE)
+    if size_match:
+        size_modifier = size_match.group(1).lower()
+        text = text[size_match.end():].strip()
+
+    # 4. Check for serving units
     detected_unit = "serving"
     for u in sorted(COMMON_UNITS, key=len, reverse=True):
         pattern = rf"^(?:of\s+)?{u}s?(?:\s+of)?(?:\s+|$)"
@@ -124,13 +176,20 @@ def parse_item_portion(item_text: str) -> Tuple[float, str, str]:
             text = text[m.end():].strip()
             break
 
-    # If the detected unit was a food item itself (e.g. '2 chapatis', '1 dosa')
-    FOOD_NAMES_IN_UNITS = {"chapati", "roti", "phulka", "puri", "idli", "dosa"}
+    # If the detected unit was a food item itself (e.g. '2 chapatis', '1 dosa', '1 bhakri')
+    FOOD_NAMES_IN_UNITS = {"chapati", "roti", "phulka", "puri", "idli", "dosa", "bhakri"}
     if detected_unit in FOOD_NAMES_IN_UNITS and not text.strip():
         food_term = detected_unit
-        detected_unit = "piece"
+        detected_unit = f"{size_modifier} piece" if size_modifier else "piece"
     else:
-        food_term = text.strip() if text.strip() else item_text.strip()
+        raw_food = text.strip() if text.strip() else item_text.strip()
+        # If a size modifier was present, retain it in food term for AI and calculator
+        if size_modifier:
+            food_term = f"{size_modifier} {raw_food}"
+            if detected_unit == "serving":
+                detected_unit = f"{size_modifier} piece" if any(f in raw_food for f in FOOD_NAMES_IN_UNITS) else "serving"
+        else:
+            food_term = raw_food
 
     return qty, detected_unit, food_term
 

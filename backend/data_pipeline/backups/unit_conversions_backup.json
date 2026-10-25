@@ -1,0 +1,210 @@
+[
+  {
+    "id": "62721dc1-0a08-4266-913b-5213df484c17",
+    "unit_name": "g",
+    "category": "weight",
+    "gram_factor": 1.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "f212382f-3d92-4dd0-a067-6aea13a68ef7",
+    "unit_name": "gm",
+    "category": "weight",
+    "gram_factor": 1.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "4329b4e9-4d5a-4ba9-b8c7-52e57cddbeb2",
+    "unit_name": "grams",
+    "category": "weight",
+    "gram_factor": 1.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "dfec5d4d-3eef-43ad-9147-04b380ac9d36",
+    "unit_name": "gram",
+    "category": "weight",
+    "gram_factor": 1.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "7633a3fe-518d-4d00-9618-9c4f36acabaf",
+    "unit_name": "kg",
+    "category": "weight",
+    "gram_factor": 1000.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "d2ca4556-533b-4a01-8e25-b7fb59986923",
+    "unit_name": "ml",
+    "category": "volume",
+    "gram_factor": 1.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "796b2b13-e4f7-4a6b-97c0-7a70c48b8917",
+    "unit_name": "milliliter",
+    "category": "weight",
+    "gram_factor": 1.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "3cec1b56-d7a2-4eaf-9433-d5b340b2e503",
+    "unit_name": "l",
+    "category": "volume",
+    "gram_factor": 1000.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "0fab7990-bbe4-4ee3-8257-ef2f483aae65",
+    "unit_name": "liter",
+    "category": "weight",
+    "gram_factor": 1000.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "7050e24c-bb12-4030-8bd3-281a024e3f7f",
+    "unit_name": "litre",
+    "category": "weight",
+    "gram_factor": 1000.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "3f1f40e3-3a3a-4db2-86b2-91f1f3f233e1",
+    "unit_name": "tsp",
+    "category": "volume",
+    "gram_factor": 5.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "0688912c-97f6-4129-9e6b-16e06738bd92",
+    "unit_name": "teaspoon",
+    "category": "weight",
+    "gram_factor": 5.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "f3411823-dcbe-456b-bcae-7603645be664",
+    "unit_name": "tbsp",
+    "category": "volume",
+    "gram_factor": 15.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "6704354e-f4ff-417f-937f-0d35ef855e32",
+    "unit_name": "tablespoon",
+    "category": "weight",
+    "gram_factor": 15.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "32093532-9fc8-4aa1-b74e-7a6ca536c3a4",
+    "unit_name": "c",
+    "category": "volume",
+    "gram_factor": 240.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "51691ff0-c3f9-4da6-986e-902f5fa51246",
+    "unit_name": "cup",
+    "category": "volume",
+    "gram_factor": 240.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "ade6637d-454e-4660-893b-dce64be3f2e8",
+    "unit_name": "sprig",
+    "category": "weight",
+    "gram_factor": 1.5,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "af8e2ea6-55d7-4774-a16a-971e1adeb718",
+    "unit_name": "pinch",
+    "category": "weight",
+    "gram_factor": 0.5,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "83939b0a-970c-40c9-875a-d2f79bd7a26f",
+    "unit_name": "dash",
+    "category": "weight",
+    "gram_factor": 0.5,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "9facf7c8-fdac-40e1-ba4e-d6eeebe20180",
+    "unit_name": "drop",
+    "category": "weight",
+    "gram_factor": 0.05,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "d5d4658e-b056-4347-b70f-fe668853d7aa",
+    "unit_name": "drops",
+    "category": "weight",
+    "gram_factor": 0.05,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "91fdb129-6cb3-4414-86ab-53335e3d9e20",
+    "unit_name": "knob",
+    "category": "weight",
+    "gram_factor": 20.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "52bccb2b-4745-4965-b956-7630d143da67",
+    "unit_name": "blob",
+    "category": "weight",
+    "gram_factor": 15.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "8beb5ec7-e56c-4281-b44e-8a3218aa9368",
+    "unit_name": "ounce",
+    "category": "weight",
+    "gram_factor": 28.35,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "eda87386-c0d7-41a1-a960-632816e00fc2",
+    "unit_name": "oz",
+    "category": "weight",
+    "gram_factor": 28.35,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  },
+  {
+    "id": "91f8d9b9-ed53-4210-9ca6-64271af72cfe",
+    "unit_name": "slice",
+    "category": "weight",
+    "gram_factor": 25.0,
+    "notes": "Standard culinary conversion",
+    "source": "Units.xlsx / Metric Standard"
+  }
+]

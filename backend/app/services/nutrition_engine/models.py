@@ -76,12 +76,17 @@ class CandidateMatch(BaseModel):
     carbohydrates_g_per_100g: Optional[float] = None
     fat_g_per_100g: Optional[float] = None
     aliases: List[str] = Field(default_factory=list)
+    validation_status: str = "verified"
+    food_id: Optional[str] = None
+    profile_id: Optional[str] = None
 
 
 class ItemNutritionResult(BaseModel):
     """Internal validated result containing transparent provenance."""
     selected_food_name: str
     recipe_code: Optional[str] = None
+    food_id: Optional[str] = None
+    profile_id: Optional[str] = None
     quantity: float = Field(..., gt=0)
     serving_unit: str
     serving_weight_g: Optional[float] = None
@@ -91,18 +96,24 @@ class ItemNutritionResult(BaseModel):
     fat_g: Optional[float] = None
     fiber_g: Optional[float] = None
     nutrition_source: Literal[
+        "nutrition_profile",
+        "reference_dataset",
         "indb_verified_recipe",
         "recipe_ingredient_aggregation",
         "user_learned_preference",
         "ai_assisted_fallback",
-        "clinical_heuristic"
+        "ai_estimation",
+        "clinical_heuristic",
+        "needs_review_catalog_entry"
     ]
     calculation_method: Literal[
         "deterministic_indb_serving",
         "deterministic_per_100g_scaled",
         "recipe_yield_aggregation",
-        "ai_heuristic_interpretation"
+        "ai_heuristic_interpretation",
+        "unverified_needs_review"
     ]
+    validation_status: str = "verified"
     uncertainty_flags: List[str] = Field(default_factory=list)
     missing_data_fields: List[str] = Field(default_factory=list)
     clarification_question: Optional[str] = None
@@ -134,10 +145,12 @@ class FoodLogConfirmationItem(BaseModel):
     fat_g: float = Field(0.0, ge=0)
     fiber_g: Optional[float] = None
     meal_type: Literal["breakfast", "lunch", "dinner", "snack"]
-    nutrition_source: str = "indb_verified_recipe"
-    calculation_method: str = "deterministic_indb_serving"
+    nutrition_source: str = "nutrition_profile"
+    calculation_method: str = "deterministic_per_100g_scaled"
     logged_at: Optional[str] = None
     idempotency_key: Optional[str] = None
+    food_id: Optional[str] = None
+    profile_id: Optional[str] = None
 
 
 class BatchFoodLogRequest(BaseModel):

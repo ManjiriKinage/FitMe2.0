@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 CLINICAL_HEURISTICS: Dict[str, Dict[str, Any]] = {
     "chapati": {"cals_per_100g": 242.0, "p": 7.4, "c": 50.0, "f": 1.1, "std_unit": "piece", "std_weight_g": 35.0},
     "roti": {"cals_per_100g": 242.0, "p": 7.4, "c": 50.0, "f": 1.1, "std_unit": "piece", "std_weight_g": 35.0},
+    "bhakri": {"cals_per_100g": 280.0, "p": 7.6, "c": 57.0, "f": 2.4, "std_unit": "piece", "std_weight_g": 50.0},
     "dal": {"cals_per_100g": 93.0, "p": 5.3, "c": 13.3, "f": 2.3, "std_unit": "bowl", "std_weight_g": 150.0},
     "rice": {"cals_per_100g": 130.0, "p": 2.7, "c": 28.0, "f": 0.3, "std_unit": "cup", "std_weight_g": 150.0},
     "poha": {"cals_per_100g": 130.0, "p": 2.3, "c": 23.0, "f": 3.3, "std_unit": "plate", "std_weight_g": 200.0},
@@ -31,7 +32,8 @@ CLINICAL_HEURISTICS: Dict[str, Dict[str, Any]] = {
 
 def clinical_heuristic_estimate(food_term: str, quantity: float, unit: str) -> ItemNutritionResult:
     """Local clinical baseline used when AI is offline or unconfigured."""
-    lower_term = food_term.lower()
+    clean_name = food_term.replace("_", " ").replace("-", " ").strip().title()
+    lower_term = clean_name.lower()
 
     matched_key = None
     for k in CLINICAL_HEURISTICS:
@@ -39,7 +41,7 @@ def clinical_heuristic_estimate(food_term: str, quantity: float, unit: str) -> I
             matched_key = k
             break
 
-    weight_g, is_std = resolve_serving_weight(food_term, quantity, unit)
+    weight_g, is_std = resolve_serving_weight(clean_name, quantity, unit)
 
     if matched_key:
         ref = CLINICAL_HEURISTICS[matched_key]
@@ -58,10 +60,10 @@ def clinical_heuristic_estimate(food_term: str, quantity: float, unit: str) -> I
         c = round(18.0 * factor, 1)
         f = round(5.5 * factor, 1)
         source = "clinical_heuristic"
-        assumption = f"Generalized composite estimate for '{food_term}' ({weight_g}g)."
+        assumption = f"Generalized composite estimate for '{clean_name}' ({weight_g}g)."
 
     return ItemNutritionResult(
-        selected_food_name=food_term.title(),
+        selected_food_name=clean_name,
         recipe_code=None,
         quantity=quantity,
         serving_unit=unit,
@@ -73,6 +75,7 @@ def clinical_heuristic_estimate(food_term: str, quantity: float, unit: str) -> I
         fiber_g=None,
         nutrition_source=source,
         calculation_method="ai_heuristic_interpretation",
+        validation_status="unverified_estimate",
         uncertainty_flags=["Uncataloged item: calculated via clinical heuristic baseline."],
         missing_data_fields=["fiber_g"],
         clarification_question=None,
@@ -106,7 +109,7 @@ async def interpret_with_ai(food_term: str, quantity: float, unit: str) -> ItemN
     )
     user_prompt = f"Estimate nutrition for: {quantity} {unit} of '{food_term}' (approximate weight: {weight_g}g)."
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={settings.GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key={settings.GEMINI_API_KEY}"
     payload = {
         "contents": [
             {"parts": [{"text": f"{system_instruction}\n\n{user_prompt}"}]}
@@ -118,7 +121,7 @@ async def interpret_with_ai(food_term: str, quantity: float, unit: str) -> ItemN
     }
 
     try:
-        async with httpx.AsyncClient(timeout=4.0) as client:
+        async with httpx.AsyncClient(timeout=6.0) as client:
             resp = await client.post(url, json=payload)
             if resp.status_code == 200:
                 data = resp.json()

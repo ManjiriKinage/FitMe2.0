@@ -67,12 +67,18 @@ async def estimate_food(
             serving_weight_g=it.serving_weight_g,
             nutrition_source=it.nutrition_source,
             calculation_method=it.calculation_method,
+            validation_status=getattr(it, "validation_status", "verified"),
             clarification_question=it.clarification_question,
             uncertainty_note=it.uncertainty_flags[0] if it.uncertainty_flags else None,
-            assumptions=f"Calculated from {it.nutrition_source} ({it.serving_weight_g}g)." if it.serving_weight_g else None
+            assumptions=f"Calculated from {it.nutrition_source} ({it.serving_weight_g}g)." if it.serving_weight_g else None,
+            food_id=it.food_id,
+            profile_id=it.profile_id
         )
         for it in meal_res.items
     ]
+
+    has_needs_review = any(it.validation_status == "needs_review" for it in parsed_items)
+    compound_uncertainty = next((it.uncertainty_note for it in parsed_items if it.uncertainty_note), None)
 
     if len(parsed_items) == 1:
         first = parsed_items[0]
@@ -89,7 +95,10 @@ async def estimate_food(
             clarification_question=meal_res.clarification_question,
             items=parsed_items,
             has_ambiguity=meal_res.has_ambiguity,
-            needs_user_confirmation=True
+            needs_user_confirmation=True,
+            validation_status=first.validation_status,
+            food_id=first.food_id,
+            profile_id=first.profile_id
         )
     else:
         # Compound meal presentation
@@ -106,11 +115,12 @@ async def estimate_food(
             carbohydrates_g=meal_res.total_carbohydrates_g,
             fat_g=meal_res.total_fat_g,
             assumptions=f"Combined meal breakdown for {len(parsed_items)} items.",
-            uncertainty_note=None,
+            uncertainty_note=compound_uncertainty,
             clarification_question=meal_res.clarification_question,
             items=parsed_items,
             has_ambiguity=meal_res.has_ambiguity,
-            needs_user_confirmation=True
+            needs_user_confirmation=True,
+            validation_status="needs_review" if has_needs_review else "verified"
         )
 
 @router.get("/search", response_model=List[RecipeSearchResult])
@@ -118,20 +128,20 @@ async def search_food_catalog(
     q: str = Query(..., min_length=1, description="Food name or recipe query"),
     limit: int = Query(10, ge=1, le=50)
 ):
-    """Searches official Indian Nutrient Databank (INDB) recipes."""
-    matches = indb_engine.search_recipes(q, limit=limit)
+    """Searches food catalog using nutrition engine."""
+    matches = nutrition_engine.search_candidates(q, limit=limit)
     return [
         RecipeSearchResult(
-            source_recipe_code=m["source_recipe_code"],
-            name=m["name"],
-            normalized_name=m["normalized_name"],
-            reported_serving_unit=m.get("reported_serving_unit", "serving"),
-            reported_serving_size_g=m.get("reported_serving_size_g", 150.0),
-            serving_energy_kcal=m.get("serving_energy_kcal"),
-            reported_energy_kcal_per_100g=m["reported_energy_kcal_per_100g"],
-            reported_protein_g_per_100g=m["reported_protein_g_per_100g"],
-            reported_carbohydrates_g_per_100g=m["reported_carbohydrates_g_per_100g"],
-            reported_fat_g_per_100g=m["reported_fat_g_per_100g"]
+            source_recipe_code=m.recipe_code,
+            name=m.name,
+            normalized_name=m.normalized_name,
+            reported_serving_unit=m.serving_unit,
+            reported_serving_size_g=m.serving_size_g,
+            serving_energy_kcal=round((m.energy_kcal_per_100g * m.serving_size_g) / 100.0, 1),
+            reported_energy_kcal_per_100g=m.energy_kcal_per_100g,
+            reported_protein_g_per_100g=m.protein_g_per_100g or 0.0,
+            reported_carbohydrates_g_per_100g=m.carbohydrates_g_per_100g or 0.0,
+            reported_fat_g_per_100g=m.fat_g_per_100g or 0.0
         )
         for m in matches
     ]
@@ -220,6 +230,10 @@ async def create_food_log(
         "logged_at": log_time,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
+    if payload.food_id:
+        record["food_id"] = payload.food_id
+    if payload.profile_id:
+        record["profile_id"] = payload.profile_id
 
     res = client.table("food_logs").insert(record).execute()
     if not res.data:
@@ -414,6 +428,10 @@ async def confirm_and_save_meal(
             "logged_at": log_time,
             "created_at": now_iso
         }
+        if item.food_id:
+            row_data["food_id"] = item.food_id
+        if item.profile_id:
+            row_data["profile_id"] = item.profile_id
         res = client.table("food_logs").insert(row_data).execute()
         if res.data:
             saved_row = res.data[0]

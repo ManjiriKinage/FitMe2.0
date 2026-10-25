@@ -204,3 +204,18 @@ The AI food estimator supports natural everyday meal descriptions with deep supp
 - *"1 cup cooked rice with chicken curry"*
 
 Returns structured portions, calories, protein, carbs, fats, preparation assumptions, and uncertainty flags. Users can review, fine-tune, or adjust quantities before saving to their daily log.
+
+🚀 How to Run the Application Manually (Whenever Needed)
+
+# 1. Activate virtual environment (if not already active)
+.\venv\Scripts\Activate.ps1
+
+# 2. Start backend server
+# Terminal 1 Backend
+python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload
+
+# Terminal 2 — Frontend (Next.js)
+
+cd frontend
+npm run dev
+

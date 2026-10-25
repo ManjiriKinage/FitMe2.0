@@ -52,6 +52,7 @@ export interface ParsedFoodItem {
   clarification_question?: string | null;
   uncertainty_note?: string | null;
   assumptions?: string | null;
+  validation_status?: string | null;
 }
 
 export interface AIEstimateResponse {
@@ -68,6 +69,7 @@ export interface AIEstimateResponse {
   items?: ParsedFoodItem[];
   has_ambiguity?: boolean;
   needs_user_confirmation?: boolean;
+  validation_status?: string | null;
 }
 
 export interface RecipeSearchResult {
