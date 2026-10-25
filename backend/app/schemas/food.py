@@ -8,6 +8,22 @@ MealType = Literal["breakfast", "lunch", "dinner", "snack"]
 class AIEstimateRequest(BaseModel):
     query: str = Field(..., min_length=2, max_length=300, description="E.g., '2 medium chapatis with 1 bowl moong dal'")
 
+class ParsedFoodItem(BaseModel):
+    food_name: str
+    quantity: float = Field(..., gt=0)
+    unit: str
+    estimated_calories: float = Field(..., ge=0)
+    protein_g: float = Field(0.0, ge=0)
+    carbohydrates_g: float = Field(0.0, ge=0)
+    fat_g: float = Field(0.0, ge=0)
+    fiber_g: Optional[float] = None
+    serving_weight_g: Optional[float] = None
+    nutrition_source: str = "indb_verified_recipe"
+    calculation_method: str = "deterministic_indb_serving"
+    clarification_question: Optional[str] = None
+    uncertainty_note: Optional[str] = None
+    assumptions: Optional[str] = None
+
 class AIEstimateResponse(BaseModel):
     food_name: str
     quantity: float
@@ -19,6 +35,9 @@ class AIEstimateResponse(BaseModel):
     assumptions: str
     uncertainty_note: Optional[str] = None
     clarification_question: Optional[str] = None
+    items: Optional[List[ParsedFoodItem]] = None
+    has_ambiguity: bool = False
+    needs_user_confirmation: bool = True
 
 class FoodLogCreate(BaseModel):
     food_name: str = Field(..., min_length=1, max_length=150)
@@ -83,3 +102,16 @@ class FoodFeedbackRequest(BaseModel):
     corrected_quantity: Optional[float] = None
     corrected_unit: Optional[str] = None
     reason: Optional[str] = None
+
+class BatchFoodLogRequest(BaseModel):
+    items: List[FoodLogCreate]
+    meal_type: MealType = "lunch"
+    logged_at: Optional[datetime] = None
+    idempotency_key: Optional[str] = None
+
+class BatchFoodLogResponse(BaseModel):
+    success: bool
+    saved_count: int
+    total_calories: float
+    message: str
+    saved_logs: List[FoodLogResponse] = Field(default_factory=list)

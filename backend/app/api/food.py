@@ -6,14 +6,16 @@ from app.db.supabase import get_current_user, get_supabase_admin_client, get_sup
 from app.schemas.food import (
     AIEstimateRequest,
     AIEstimateResponse,
+    ParsedFoodItem,
     FoodLogCreate,
     FoodLogResponse,
     RecipeSearchResult,
-    FoodFeedbackRequest
+    FoodFeedbackRequest,
+    BatchFoodLogRequest,
+    BatchFoodLogResponse
 )
-from app.services.indb_engine import indb_engine
+from app.services.nutrition_engine import nutrition_engine
 from app.services.user_learning import UserPreferenceLearningEngine
-from app.services.food_ai import estimate_food_calories
 
 router = APIRouter(prefix="/food", tags=["Food & AI Estimation"])
 
@@ -24,63 +26,87 @@ async def estimate_food(
 ):
     """
     Estimates calories and macronutrients for food descriptions.
-    Priority Order (Database-First Matching):
-    1. Direct match in official Indian Nutrient Databank (INDB) catalog (deterministic arithmetic).
-    2. Incorporates personalized user portion preferences if confirmed in past meals.
-    3. Graceful AI fallback (Gemini / heuristic Indian database) for novel uncataloged foods.
+    Supports single items ('2 medium chapatis') or compound meals ('2 chapatis and 1 bowl of dal').
+    Processing Order:
+    1. Text normalization and compound multi-item sentence splitting.
+    2. Local INDB catalog search (exact, alias, token overlap).
+    3. Customary user-portion auto adjustment (from learning engine).
+    4. Deterministic per-100g and dish-specific serving calculation.
+    5. Disambiguation check & concise clarification question if multiple divergent candidates exist.
+    6. Bounded AI / clinical baseline fallback for uncataloged items.
     """
     client = get_supabase_admin_client(user) or get_supabase_anon_client()
 
-    # 1. Attempt deterministic INDB catalog resolution first
-    indb_match = indb_engine.parse_natural_food_input(payload.query)
-    if indb_match:
-        # Check user personalized history
-        user_pref = None
-        if client:
-            user_pref = UserPreferenceLearningEngine.get_user_preference(
-                client=client,
-                user_id=user["id"],
-                food_name=indb_match["food_name"]
-            )
-
-        qty = indb_match["quantity"]
-        unit = indb_match["unit"]
-        assumption = f"Calculated deterministically from Indian Nutrient Databank (INDB) official recipe {indb_match['recipe_code']}."
-
-        # If user has a learned personal preference and query was general (default 1.0)
-        if user_pref and qty == 1.0 and unit == "serving":
-            preferred_qty = float(user_pref.get("preferred_serving_quantity", 1.0))
-            preferred_unit = str(user_pref.get("preferred_serving_unit", "serving"))
-            # Recalculate using user's usual portion
-            recalc = indb_engine.calculate_from_servings(indb_match["recipe_code"], preferred_qty, serving_unit=preferred_unit)
-            qty = preferred_qty
-            unit = preferred_unit
-            indb_match["estimated_calories"] = recalc["calories"]
-            indb_match["protein_g"] = recalc["protein_g"]
-            indb_match["carbohydrates_g"] = recalc["carbohydrates_g"]
-            indb_match["fat_g"] = recalc["fat_g"]
-            assumption += f" Auto-adjusted to your customary serving ({qty} {unit}) based on past confirmations."
-
-        return AIEstimateResponse(
-            food_name=indb_match["food_name"],
-            quantity=qty,
-            unit=unit,
-            estimated_calories=indb_match["estimated_calories"],
-            protein_g=indb_match["protein_g"],
-            carbohydrates_g=indb_match["carbohydrates_g"],
-            fat_g=indb_match["fat_g"],
-            assumptions=assumption,
-            uncertainty_note=None,
-            clarification_question=None
-        )
-
-    # 2. Fallback to AI / Heuristic model
     try:
-        return await estimate_food_calories(payload.query)
+        meal_res = await nutrition_engine.parse_and_calculate_meal(
+            payload.query,
+            user_id=user["id"],
+            client=client
+        )
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Could not estimate food calories: {str(e)}. Please retry."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Could not calculate nutrition: {str(e)}"
+        )
+
+    # Convert items to ParsedFoodItem schema
+    parsed_items = [
+        ParsedFoodItem(
+            food_name=it.selected_food_name,
+            quantity=it.quantity,
+            unit=it.serving_unit,
+            estimated_calories=it.total_calories,
+            protein_g=it.protein_g or 0.0,
+            carbohydrates_g=it.carbohydrates_g or 0.0,
+            fat_g=it.fat_g or 0.0,
+            fiber_g=it.fiber_g,
+            serving_weight_g=it.serving_weight_g,
+            nutrition_source=it.nutrition_source,
+            calculation_method=it.calculation_method,
+            clarification_question=it.clarification_question,
+            uncertainty_note=it.uncertainty_flags[0] if it.uncertainty_flags else None,
+            assumptions=f"Calculated from {it.nutrition_source} ({it.serving_weight_g}g)." if it.serving_weight_g else None
+        )
+        for it in meal_res.items
+    ]
+
+    if len(parsed_items) == 1:
+        first = parsed_items[0]
+        return AIEstimateResponse(
+            food_name=first.food_name,
+            quantity=first.quantity,
+            unit=first.unit,
+            estimated_calories=first.estimated_calories,
+            protein_g=first.protein_g,
+            carbohydrates_g=first.carbohydrates_g,
+            fat_g=first.fat_g,
+            assumptions=first.assumptions or f"Calculated deterministically ({first.quantity} {first.unit}).",
+            uncertainty_note=first.uncertainty_note,
+            clarification_question=meal_res.clarification_question,
+            items=parsed_items,
+            has_ambiguity=meal_res.has_ambiguity,
+            needs_user_confirmation=True
+        )
+    else:
+        # Compound meal presentation
+        summary_title = " & ".join([it.food_name for it in parsed_items[:3]])
+        if len(parsed_items) > 3:
+            summary_title += f" + {len(parsed_items) - 3} more"
+
+        return AIEstimateResponse(
+            food_name=summary_title,
+            quantity=1.0,
+            unit="meal",
+            estimated_calories=meal_res.total_calories,
+            protein_g=meal_res.total_protein_g,
+            carbohydrates_g=meal_res.total_carbohydrates_g,
+            fat_g=meal_res.total_fat_g,
+            assumptions=f"Combined meal breakdown for {len(parsed_items)} items.",
+            uncertainty_note=None,
+            clarification_question=meal_res.clarification_question,
+            items=parsed_items,
+            has_ambiguity=meal_res.has_ambiguity,
+            needs_user_confirmation=True
         )
 
 @router.get("/search", response_model=List[RecipeSearchResult])
@@ -189,6 +215,83 @@ async def delete_food_log(
 
     res = client.table("food_logs").delete().eq("id", log_id).eq("user_id", user["id"]).execute()
     return {"message": "Food log deleted successfully", "id": log_id}
+
+@router.post("/confirm", response_model=BatchFoodLogResponse)
+async def confirm_and_save_meal(
+    payload: BatchFoodLogRequest,
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Confirms and saves multi-item food estimates into food_logs.
+    - Validates nutrition and positive quantities.
+    - Saves verified nutrition snapshot.
+    - Prevents accidental double submissions via idempotency check.
+    - Updates user portion learning.
+    """
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
+    if not client:
+        raise HTTPException(status_code=500, detail="Database client not configured.")
+
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="No food items provided to confirm.")
+
+    saved_logs = []
+    tot_cals = 0.0
+    now_iso = datetime.now(timezone.utc).isoformat()
+    log_time = payload.logged_at.isoformat() if payload.logged_at else now_iso
+
+    for item in payload.items:
+        recent_cutoff = datetime.fromtimestamp(datetime.now(timezone.utc).timestamp() - 5.0, timezone.utc).isoformat()
+        recent = (
+            client.table("food_logs")
+            .select("id")
+            .eq("user_id", user["id"])
+            .eq("food_name", item.food_name)
+            .gte("created_at", recent_cutoff)
+            .execute()
+        )
+        if recent.data and len(recent.data) > 0:
+            logger.info(f"Ignored duplicate submission for {item.food_name}")
+            continue
+
+        row_data = {
+            "user_id": user["id"],
+            "food_name": item.food_name,
+            "quantity": item.quantity,
+            "unit": item.unit,
+            "estimated_calories": item.estimated_calories,
+            "protein_g": item.protein_g,
+            "carbohydrates_g": item.carbohydrates_g,
+            "fat_g": item.fat_g,
+            "meal_type": payload.meal_type,
+            "logged_at": log_time,
+            "created_at": now_iso
+        }
+        res = client.table("food_logs").insert(row_data).execute()
+        if res.data:
+            saved_row = res.data[0]
+            saved_logs.append(FoodLogResponse.model_validate(saved_row))
+            tot_cals += item.estimated_calories
+
+            # Record learning preference
+            try:
+                UserPreferenceLearningEngine.record_confirmed_log(
+                    client=client,
+                    user_id=user["id"],
+                    food_name=item.food_name,
+                    quantity=item.quantity,
+                    serving_unit=item.unit
+                )
+            except Exception:
+                pass
+
+    return BatchFoodLogResponse(
+        success=True,
+        saved_count=len(saved_logs),
+        total_calories=round(tot_cals, 1),
+        message=f"Successfully confirmed and logged {len(saved_logs)} food items.",
+        saved_logs=saved_logs
+    )
 
 @router.post("/feedback")
 async def submit_food_feedback(
