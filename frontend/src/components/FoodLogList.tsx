@@ -74,17 +74,17 @@ export default function FoodLogList({
   };
 
   return (
-    <div className="bg-white rounded-4xl p-6 sm:p-7 border border-mint shadow-soft flex flex-col justify-between">
+    <div className="bg-white rounded-3xl p-4 sm:p-5 border border-mint shadow-soft flex flex-col justify-between">
       <div>
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="font-extrabold text-lg text-charcoal tracking-tight">Daily Calories</h3>
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-cream text-charcoal/70 border border-charcoal/5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-extrabold text-base text-charcoal tracking-tight">Daily Calories</h3>
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-cream text-charcoal/70 border border-charcoal/5">
             Meals Breakdown
           </span>
         </div>
 
         {/* Meal cards stack */}
-        <div className="space-y-3.5">
+        <div className="space-y-2.5">
           {mealConfigs.map(({ key, label, icon: Icon, bgColor, borderColor, badgeColor }) => {
             const items = meals[key] || [];
             const mealCalories = Math.round(items.reduce((acc, curr) => acc + curr.estimated_calories, 0));
@@ -98,16 +98,16 @@ export default function FoodLogList({
             return (
               <div
                 key={key}
-                className={`rounded-3xl border transition-all overflow-hidden ${bgColor} ${borderColor}`}
+                className={`rounded-2xl border transition-all overflow-hidden ${bgColor} ${borderColor}`}
               >
                 {/* Header Row */}
                 <div
                   onClick={() => setExpandedMeal(isExpanded ? null : key)}
-                  className="p-4 sm:p-4.5 flex items-center justify-between cursor-pointer select-none"
+                  className="p-3 sm:p-3.5 flex items-center justify-between cursor-pointer select-none"
                 >
-                  <div className="flex items-center gap-3 min-w-0 pr-3">
-                    <div className="w-10 h-10 rounded-2xl bg-white/90 flex items-center justify-center text-charcoal shadow-sm flex-shrink-0">
-                      <Icon className="w-5 h-5 text-charcoal" />
+                  <div className="flex items-center gap-2.5 min-w-0 pr-3">
+                    <div className="w-8 h-8 rounded-xl bg-white/90 flex items-center justify-center text-charcoal shadow-sm flex-shrink-0">
+                      <Icon className="w-4 h-4 text-charcoal" />
                     </div>
                     <div className="min-w-0">
                       <h4 className="font-bold text-sm sm:text-base text-charcoal flex items-center gap-2">

@@ -167,3 +167,91 @@ class UserPreferenceLearningEngine:
         except Exception as e:
             logger.warning(f"Could not record user feedback: {e}")
             return None
+
+    @classmethod
+    def list_user_preferences(cls, client, user_id: str) -> list:
+        """Lists all learned preferences for a specific user."""
+        if not client or not user_id:
+            return []
+        try:
+            res = (
+                client.table("user_food_preferences")
+                .select("*")
+                .eq("user_id", user_id)
+                .order("confirmed_observations", desc=True)
+                .execute()
+            )
+            return res.data or []
+        except Exception as e:
+            logger.warning(f"Could not list user preferences: {e}")
+            return []
+
+    @classmethod
+    def update_user_preference(
+        cls,
+        client,
+        user_id: str,
+        pref_id: str,
+        quantity: float,
+        serving_unit: str,
+        serving_weight_g: Optional[float] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Updates a user preference entry explicitly."""
+        if not client or not user_id or not pref_id:
+            return None
+        try:
+            now_iso = datetime.now(timezone.utc).isoformat()
+            update_data: Dict[str, Any] = {
+                "preferred_serving_quantity": quantity,
+                "preferred_serving_unit": serving_unit,
+                "updated_at": now_iso
+            }
+            if serving_weight_g is not None:
+                update_data["preferred_serving_weight_g"] = serving_weight_g
+
+            res = (
+                client.table("user_food_preferences")
+                .update(update_data)
+                .eq("id", pref_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
+            return res.data[0] if res.data else None
+        except Exception as e:
+            logger.warning(f"Could not update user preference: {e}")
+            return None
+
+    @classmethod
+    def delete_user_preference(cls, client, user_id: str, pref_id: str) -> bool:
+        """Deletes a specific user preference."""
+        if not client or not user_id or not pref_id:
+            return False
+        try:
+            res = (
+                client.table("user_food_preferences")
+                .delete()
+                .eq("id", pref_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
+            return bool(res.data)
+        except Exception as e:
+            logger.warning(f"Could not delete user preference: {e}")
+            return False
+
+    @classmethod
+    def clear_user_preferences(cls, client, user_id: str) -> bool:
+        """Clears all learned preferences for the authenticated user."""
+        if not client or not user_id:
+            return False
+        try:
+            res = (
+                client.table("user_food_preferences")
+                .delete()
+                .eq("user_id", user_id)
+                .execute()
+            )
+            return True
+        except Exception as e:
+            logger.warning(f"Could not clear user preferences: {e}")
+            return False

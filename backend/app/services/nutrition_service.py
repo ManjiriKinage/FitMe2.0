@@ -58,8 +58,21 @@ def aggregate_daily_dashboard(
     total_c = round(total_c, 1)
     total_f = round(total_f, 1)
 
-    # Safe calculation of calories remaining (cannot be negative)
-    remaining = max(0.0, round(float(daily_calorie_target) - total_cals, 1))
+    # Reconciled meal subtotals
+    meal_subtotals: Dict[str, float] = {
+        "breakfast": round(sum(i.estimated_calories for i in meals["breakfast"]), 1),
+        "lunch": round(sum(i.estimated_calories for i in meals["lunch"]), 1),
+        "dinner": round(sum(i.estimated_calories for i in meals["dinner"]), 1),
+        "snack": round(sum(i.estimated_calories for i in meals["snack"]), 1),
+    }
+
+    # Safe calculation of calories remaining or over target
+    if total_cals > daily_calorie_target:
+        remaining = 0.0
+        over_target = round(total_cals - float(daily_calorie_target), 1)
+    else:
+        remaining = round(float(daily_calorie_target) - total_cals, 1)
+        over_target = 0.0
 
     # Percentage consumed (capped at 100% for progress rings, but raw counts accurately shown)
     pct = round((total_cals / daily_calorie_target * 100.0), 1) if daily_calorie_target > 0 else 0.0
@@ -69,6 +82,7 @@ def aggregate_daily_dashboard(
         daily_calorie_target=daily_calorie_target,
         calories_consumed=total_cals,
         calories_remaining=remaining,
+        calories_over_target=over_target,
         percentage_consumed=pct,
         macro_totals=DailyMacroTotals(
             calories=total_cals,
@@ -77,5 +91,7 @@ def aggregate_daily_dashboard(
             fat_g=total_f
         ),
         macro_targets=macro_targets,
-        meals=meals
+        meal_subtotals=meal_subtotals,
+        meals=meals,
+        timezone="UTC"
     )

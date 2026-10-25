@@ -50,6 +50,17 @@ class FoodLogCreate(BaseModel):
     meal_type: MealType
     logged_at: Optional[datetime] = None
 
+class FoodLogUpdate(BaseModel):
+    food_name: Optional[str] = Field(None, min_length=1, max_length=150)
+    quantity: Optional[float] = Field(None, gt=0)
+    unit: Optional[str] = Field(None, min_length=1, max_length=50)
+    estimated_calories: Optional[float] = Field(None, ge=0)
+    protein_g: Optional[float] = Field(None, ge=0)
+    carbohydrates_g: Optional[float] = Field(None, ge=0)
+    fat_g: Optional[float] = Field(None, ge=0)
+    meal_type: Optional[MealType] = None
+    logged_at: Optional[datetime] = None
+
 class FoodLogResponse(BaseModel):
     id: str
     user_id: str
@@ -77,10 +88,13 @@ class DashboardSummaryResponse(BaseModel):
     daily_calorie_target: int
     calories_consumed: float
     calories_remaining: float
+    calories_over_target: float = 0.0
     percentage_consumed: float
     macro_totals: DailyMacroTotals
     macro_targets: Optional[Dict[str, float]] = None
+    meal_subtotals: Dict[str, float] = Field(default_factory=dict)
     meals: Dict[MealType, List[FoodLogResponse]]
+    timezone: str = "UTC"
 
 class RecipeSearchResult(BaseModel):
     source_recipe_code: str
@@ -94,6 +108,23 @@ class RecipeSearchResult(BaseModel):
     reported_carbohydrates_g_per_100g: float
     reported_fat_g_per_100g: float
 
+class RecipeDetailResponse(BaseModel):
+    source_recipe_code: str
+    name: str
+    normalized_name: str
+    aliases: List[str] = Field(default_factory=list)
+    reported_serving_unit: str = "serving"
+    reported_serving_size_g: float = 150.0
+    serving_energy_kcal: Optional[float] = None
+    serving_protein_g: Optional[float] = None
+    serving_carbohydrates_g: Optional[float] = None
+    serving_fat_g: Optional[float] = None
+    reported_energy_kcal_per_100g: float
+    reported_protein_g_per_100g: Optional[float] = None
+    reported_carbohydrates_g_per_100g: Optional[float] = None
+    reported_fat_g_per_100g: Optional[float] = None
+    reported_fiber_g_per_100g: Optional[float] = None
+
 class FoodFeedbackRequest(BaseModel):
     food_log_id: Optional[str] = None
     food_name: str
@@ -102,6 +133,22 @@ class FoodFeedbackRequest(BaseModel):
     corrected_quantity: Optional[float] = None
     corrected_unit: Optional[str] = None
     reason: Optional[str] = None
+
+class UserPreferenceResponse(BaseModel):
+    id: str
+    user_id: str
+    food_key: str
+    preferred_serving_quantity: float
+    preferred_serving_unit: str
+    preferred_serving_weight_g: Optional[float] = None
+    confirmed_observations: int
+    last_confirmed_at: datetime
+    created_at: Optional[datetime] = None
+
+class UserPreferenceUpdate(BaseModel):
+    preferred_serving_quantity: float = Field(..., gt=0)
+    preferred_serving_unit: str = Field(..., min_length=1)
+    preferred_serving_weight_g: Optional[float] = Field(None, gt=0)
 
 class BatchFoodLogRequest(BaseModel):
     items: List[FoodLogCreate]

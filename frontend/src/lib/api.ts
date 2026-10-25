@@ -5,7 +5,12 @@ import {
   AIEstimateResponse,
   FoodLogItem,
   DashboardSummary,
-  GoalRecalculateResponse
+  GoalRecalculateResponse,
+  RecipeSearchResult,
+  RecipeDetailResponse,
+  UserPreferenceItem,
+  BatchFoodLogConfirmRequest,
+  BatchFoodLogConfirmResponse,
 } from "../types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -94,8 +99,20 @@ export const api = {
     });
   },
 
-  getFoodLogs: async (date?: string): Promise<FoodLogItem[]> => {
-    const queryStr = date ? `?date=${encodeURIComponent(date)}` : "";
+  searchFoods: async (query: string, limit: number = 10): Promise<RecipeSearchResult[]> => {
+    return fetchWithAuth<RecipeSearchResult[]>(`/api/food/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+  },
+
+  getRecipeDetail: async (recipeCode: string): Promise<RecipeDetailResponse> => {
+    return fetchWithAuth<RecipeDetailResponse>(`/api/food/recipes/${encodeURIComponent(recipeCode)}`);
+  },
+
+  getFoodLogs: async (date?: string, page: number = 1, pageSize: number = 50): Promise<FoodLogItem[]> => {
+    const params = new URLSearchParams();
+    if (date) params.append("date", date);
+    if (page > 1) params.append("page", String(page));
+    if (pageSize !== 50) params.append("page_size", String(pageSize));
+    const queryStr = params.toString() ? `?${params.toString()}` : "";
     return fetchWithAuth<FoodLogItem[]>(`/api/food/logs${queryStr}`);
   },
 
@@ -106,8 +123,49 @@ export const api = {
     });
   },
 
+  updateFoodLog: async (id: string, data: Partial<FoodLogItem>): Promise<FoodLogItem> => {
+    return fetchWithAuth<FoodLogItem>(`/api/food/logs/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
   deleteFoodLog: async (id: string): Promise<{ message: string; id: string }> => {
     return fetchWithAuth<{ message: string; id: string }>(`/api/food/logs/${id}`, {
+      method: "DELETE",
+    });
+  },
+
+  confirmMeal: async (payload: BatchFoodLogConfirmRequest): Promise<BatchFoodLogConfirmResponse> => {
+    return fetchWithAuth<BatchFoodLogConfirmResponse>("/api/food/confirm", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // User Preferences & Learning (Phase 7)
+  getPreferences: async (): Promise<UserPreferenceItem[]> => {
+    return fetchWithAuth<UserPreferenceItem[]>("/api/food/preferences");
+  },
+
+  updatePreference: async (
+    prefId: string,
+    data: { preferred_serving_quantity?: number; preferred_serving_unit?: string; preferred_serving_weight_g?: number }
+  ): Promise<UserPreferenceItem> => {
+    return fetchWithAuth<UserPreferenceItem>(`/api/food/preferences/${prefId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  deletePreference: async (prefId: string): Promise<{ message: string; id: string }> => {
+    return fetchWithAuth<{ message: string; id: string }>(`/api/food/preferences/${prefId}`, {
+      method: "DELETE",
+    });
+  },
+
+  clearPreferences: async (): Promise<{ message: string }> => {
+    return fetchWithAuth<{ message: string }>("/api/food/preferences", {
       method: "DELETE",
     });
   },
@@ -118,3 +176,4 @@ export const api = {
     return fetchWithAuth<DashboardSummary>(`/api/dashboard${queryStr}`);
   },
 };
+

@@ -37,6 +37,23 @@ export interface CalorieCalculationResult {
   warnings: string[];
 }
 
+export interface ParsedFoodItem {
+  food_name: string;
+  quantity: number;
+  unit: string;
+  estimated_calories: number;
+  protein_g: number;
+  carbohydrates_g: number;
+  fat_g: number;
+  fiber_g?: number | null;
+  serving_weight_g?: number | null;
+  nutrition_source?: string | null;
+  calculation_method?: string | null;
+  clarification_question?: string | null;
+  uncertainty_note?: string | null;
+  assumptions?: string | null;
+}
+
 export interface AIEstimateResponse {
   food_name: string;
   quantity: number;
@@ -48,6 +65,77 @@ export interface AIEstimateResponse {
   assumptions: string;
   uncertainty_note?: string | null;
   clarification_question?: string | null;
+  items?: ParsedFoodItem[];
+  has_ambiguity?: boolean;
+  needs_user_confirmation?: boolean;
+}
+
+export interface RecipeSearchResult {
+  source_recipe_code: string;
+  name: string;
+  normalized_name: string;
+  reported_serving_unit: string;
+  reported_serving_size_g: number;
+  serving_energy_kcal?: number | null;
+  reported_energy_kcal_per_100g: number;
+  reported_protein_g_per_100g?: number | null;
+  reported_carbohydrates_g_per_100g?: number | null;
+  reported_fat_g_per_100g?: number | null;
+}
+
+export interface RecipeDetailResponse {
+  source_recipe_code: string;
+  name: string;
+  normalized_name: string;
+  aliases: string[];
+  reported_serving_unit: string;
+  reported_serving_size_g: number;
+  serving_energy_kcal?: number | null;
+  serving_protein_g?: number | null;
+  serving_carbohydrates_g?: number | null;
+  serving_fat_g?: number | null;
+  reported_energy_kcal_per_100g: number;
+  reported_protein_g_per_100g?: number | null;
+  reported_carbohydrates_g_per_100g?: number | null;
+  reported_fat_g_per_100g?: number | null;
+  reported_fiber_g_per_100g?: number | null;
+}
+
+export interface UserPreferenceItem {
+  id: string;
+  user_id: string;
+  food_name: string;
+  normalized_food_name: string;
+  preferred_serving_quantity: number;
+  preferred_serving_unit: string;
+  preferred_serving_weight_g?: number | null;
+  observation_count: number;
+  confidence_score: number;
+  is_explicit_override: boolean;
+  last_used_at?: string;
+  created_at?: string;
+}
+
+export interface BatchFoodLogConfirmRequest {
+  meal_type: MealType;
+  items: {
+    food_name: string;
+    quantity: number;
+    unit: string;
+    estimated_calories: number;
+    protein_g: number;
+    carbohydrates_g: number;
+    fat_g: number;
+  }[];
+  logged_at?: string;
+}
+
+export interface BatchFoodLogConfirmResponse {
+  success: boolean;
+  saved_count: number;
+  total_calories: number;
+  message: string;
+  saved_logs: FoodLogItem[];
 }
 
 export interface FoodLogItem {

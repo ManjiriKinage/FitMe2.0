@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api } from "@/lib/api";
-import { MealType, AIEstimateResponse, FoodLogItem } from "@/types";
+import { MealType, AIEstimateResponse, FoodLogItem, ParsedFoodItem } from "@/types";
 import {
   X,
   Sparkles,
@@ -12,7 +12,8 @@ import {
   HelpCircle,
   Info,
   Flame,
-  ArrowRight
+  ArrowRight,
+  Layers
 } from "lucide-react";
 
 interface FoodLogFormProps {
@@ -45,13 +46,13 @@ export default function FoodLogForm({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Examples user can click for quick testing
+  // Quick suggestions for rapid testing
   const quickExamples = [
     "2 medium chapatis",
     "1 bowl of dal",
     "1 plate of poha",
     "1 cup of cooked rice",
-    "1 homemade paneer bhurji",
+    "2 chapatis and 1 bowl of dal",
     "2 boiled eggs with 1 slice toast"
   ];
 
@@ -65,7 +66,7 @@ export default function FoodLogForm({
     try {
       const res = await api.estimateFood(text.trim());
       setEstimateData(res);
-      // Pre-fill editable inputs with AI estimates
+      // Pre-fill editable inputs with estimates
       setEditFoodName(res.food_name);
       setEditQuantity(res.quantity);
       setEditUnit(res.unit);
@@ -90,19 +91,40 @@ export default function FoodLogForm({
     setSaveError(null);
 
     try {
-      const savedItem = await api.createFoodLog({
-        food_name: editFoodName.trim(),
-        quantity: Number(editQuantity) || 1,
-        unit: editUnit.trim() || "serving",
-        estimated_calories: Number(editCalories) || 0,
-        protein_g: Number(editProtein) || 0,
-        carbohydrates_g: Number(editCarbs) || 0,
-        fat_g: Number(editFat) || 0,
-        meal_type: mealType,
-        logged_at: new Date().toISOString(),
-      });
+      // If we have a multi-item compound meal breakdown, use the batch confirmation endpoint
+      if (estimateData?.items && estimateData.items.length > 1) {
+        const batchRes = await api.confirmMeal({
+          meal_type: mealType,
+          items: estimateData.items.map((it) => ({
+            food_name: it.food_name,
+            quantity: it.quantity,
+            unit: it.unit,
+            estimated_calories: it.estimated_calories,
+            protein_g: it.protein_g,
+            carbohydrates_g: it.carbohydrates_g,
+            fat_g: it.fat_g,
+          })),
+        });
 
-      onSuccess(savedItem);
+        if (batchRes.saved_logs.length > 0) {
+          onSuccess(batchRes.saved_logs[0]);
+        }
+      } else {
+        // Single item save
+        const savedItem = await api.createFoodLog({
+          food_name: editFoodName.trim(),
+          quantity: Number(editQuantity) || 1,
+          unit: editUnit.trim() || "serving",
+          estimated_calories: Number(editCalories) || 0,
+          protein_g: Number(editProtein) || 0,
+          carbohydrates_g: Number(editCarbs) || 0,
+          fat_g: Number(editFat) || 0,
+          meal_type: mealType,
+          logged_at: new Date().toISOString(),
+        });
+        onSuccess(savedItem);
+      }
+
       onClose();
     } catch (err: any) {
       setSaveError(err.message || "Failed to save food entry. Please try again.");
@@ -111,257 +133,316 @@ export default function FoodLogForm({
     }
   };
 
+  const hasMultipleItems = Boolean(estimateData?.items && estimateData.items.length > 1);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-charcoal/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white w-full max-w-xl rounded-4xl p-6 sm:p-8 shadow-2xl border border-mint max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-charcoal/5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-charcoal/60 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white w-full max-w-xl rounded-3xl sm:rounded-4xl shadow-2xl border border-mint flex flex-col max-h-[88vh] overflow-hidden">
+        {/* Pinned Modal Header */}
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-charcoal/5 flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-mint flex items-center justify-center text-sage">
-              <Sparkles className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-2xl bg-mint flex items-center justify-center text-sage">
+              <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-extrabold text-xl text-charcoal tracking-tight">AI Food Estimator</h3>
-              <p className="text-xs text-charcoal/60">Type meals in everyday natural language</p>
+              <h3 className="font-extrabold text-lg text-charcoal tracking-tight">AI Food Estimator</h3>
+              <p className="text-[11px] text-charcoal/60">Deterministic INDB Nutrition + AI Fallback</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-xl bg-cream hover:bg-cream-soft flex items-center justify-center text-charcoal/60 hover:text-charcoal transition"
+            className="w-8 h-8 rounded-xl bg-cream hover:bg-cream-soft flex items-center justify-center text-charcoal/60 hover:text-charcoal transition"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Meal Selector */}
-        <div className="mt-5">
-          <label className="block text-xs font-bold uppercase tracking-wider text-charcoal/60 mb-2">
-            Target Meal Category
-          </label>
-          <div className="grid grid-cols-4 gap-2">
-            {(["breakfast", "lunch", "dinner", "snack"] as MealType[]).map((type) => (
-              <button
-                key={type}
-                type="button"
-                onClick={() => setMealType(type)}
-                className={`py-2 px-3 rounded-2xl text-xs font-bold capitalize transition border ${
-                  mealType === type
-                    ? "bg-charcoal text-cream border-charcoal shadow-sm"
-                    : "bg-cream/60 text-charcoal/70 border-charcoal/10 hover:border-sage"
-                }`}
-              >
-                {type}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* AI Query Input */}
-        <div className="mt-5">
-          <label className="block text-xs font-bold uppercase tracking-wider text-charcoal/60 mb-2">
-            Describe what you ate
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleEstimate();
-                }
-              }}
-              placeholder="e.g. 2 medium chapatis with 1 bowl moong dal"
-              className="flex-1 px-4 py-3 bg-cream/70 rounded-2xl border border-charcoal/10 focus:border-sage focus:ring-2 focus:ring-sage/20 outline-none text-charcoal text-sm"
-            />
-            <button
-              type="button"
-              onClick={() => handleEstimate()}
-              disabled={isEstimating || !query.trim()}
-              className="px-5 py-3 bg-sage text-white font-bold rounded-2xl hover:bg-sage-600 transition shadow-soft flex items-center gap-2 text-sm disabled:opacity-60 flex-shrink-0"
-            >
-              {isEstimating ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Estimating...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>Estimate</span>
-                </>
-              )}
-            </button>
+        {/* Scrollable Form Content */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5">
+          {/* Target Meal Category */}
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-charcoal/60 mb-1.5">
+              Meal Category
+            </label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {(["breakfast", "lunch", "dinner", "snack"] as MealType[]).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setMealType(type)}
+                  className={`py-1.5 px-2.5 rounded-xl text-xs font-bold capitalize transition border ${
+                    mealType === type
+                      ? "bg-charcoal text-cream border-charcoal shadow-sm"
+                      : "bg-cream/60 text-charcoal/70 border-charcoal/10 hover:border-sage"
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Quick suggestions pills */}
-          <div className="mt-2.5 flex flex-wrap gap-1.5 items-center">
-            <span className="text-[11px] text-charcoal/50 mr-1">Suggestions:</span>
-            {quickExamples.slice(0, 4).map((ex) => (
-              <button
-                key={ex}
-                type="button"
-                onClick={() => {
-                  setQuery(ex);
-                  handleEstimate(ex);
+          {/* AI Query Input */}
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-charcoal/60 mb-1.5">
+              Describe what you ate
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleEstimate();
+                  }
                 }}
-                className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-cream hover:bg-mint text-charcoal/75 border border-charcoal/5 transition"
+                placeholder="e.g. 2 medium chapatis with 1 bowl moong dal"
+                className="flex-1 px-3.5 py-2.5 bg-cream/70 rounded-xl border border-charcoal/10 focus:border-sage focus:ring-2 focus:ring-sage/20 outline-none text-charcoal text-xs"
+              />
+              <button
+                type="button"
+                onClick={() => handleEstimate()}
+                disabled={isEstimating || !query.trim()}
+                className="px-4 py-2.5 bg-sage text-white font-bold rounded-xl hover:bg-sage-600 transition shadow-soft flex items-center gap-1.5 text-xs disabled:opacity-60 flex-shrink-0"
               >
-                {ex}
+                {isEstimating ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Estimating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Estimate</span>
+                  </>
+                )}
               </button>
-            ))}
+            </div>
+
+            {/* Quick suggestions pills */}
+            <div className="mt-2 flex flex-wrap gap-1.5 items-center">
+              <span className="text-[10px] text-charcoal/50 mr-0.5">Try:</span>
+              {quickExamples.slice(0, 4).map((ex) => (
+                <button
+                  key={ex}
+                  type="button"
+                  onClick={() => {
+                    setQuery(ex);
+                    handleEstimate(ex);
+                  }}
+                  className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-cream hover:bg-mint text-charcoal/75 border border-charcoal/5 transition"
+                >
+                  {ex}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {estimateError && (
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{estimateError}</span>
+            </div>
+          )}
+
+          {/* Clarification prompt if ambiguous */}
+          {estimateData?.clarification_question && (
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2">
+              <HelpCircle className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong className="block font-bold">Quick Clarification:</strong>
+                <span>{estimateData.clarification_question}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Multi-Item Breakdown Display */}
+          {hasMultipleItems && estimateData?.items && (
+            <div className="space-y-2 pt-2 border-t border-charcoal/10">
+              <span className="text-xs font-bold text-charcoal flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-sage" />
+                Individual Dish Breakdown ({estimateData.items.length} items)
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {estimateData.items.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2.5 rounded-xl bg-cream/50 border border-charcoal/5 flex items-center justify-between"
+                  >
+                    <div>
+                      <p className="text-xs font-bold text-charcoal">{item.food_name}</p>
+                      <p className="text-[10px] text-charcoal/50">
+                        {item.quantity} {item.unit}
+                        {item.serving_weight_g ? ` (${item.serving_weight_g}g)` : ""}
+                      </p>
+                    </div>
+                    <span className="text-xs font-black text-sage">
+                      {Math.round(item.estimated_calories)} kcal
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Review & Edit Section */}
+          {estimateData && (
+            <div className="pt-3 border-t border-charcoal/10 space-y-3 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-charcoal flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-sage" />
+                  {hasMultipleItems ? "Total Summary" : "Review & Edit Before Saving"}
+                </span>
+                <span className="text-[10px] text-charcoal/50">Inputs are editable</span>
+              </div>
+
+              {/* Editable Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="sm:col-span-2">
+                  <label className="block text-[10px] font-bold text-charcoal/60 mb-0.5">Food Title</label>
+                  <input
+                    type="text"
+                    value={editFoodName}
+                    onChange={(e) => setEditFoodName(e.target.value)}
+                    className="w-full px-3 py-2 bg-cream/50 rounded-xl border border-charcoal/10 text-charcoal text-xs font-semibold outline-none focus:border-sage"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-charcoal/60 mb-0.5">Quantity</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={editQuantity}
+                    onChange={(e) => setEditQuantity(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 bg-cream/50 rounded-xl border border-charcoal/10 text-charcoal text-xs font-semibold outline-none focus:border-sage"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-charcoal/60 mb-0.5">Serving Unit</label>
+                  <input
+                    type="text"
+                    value={editUnit}
+                    onChange={(e) => setEditUnit(e.target.value)}
+                    placeholder="e.g. piece, bowl, katori"
+                    className="w-full px-3 py-1.5 bg-cream/50 rounded-xl border border-charcoal/10 text-charcoal text-xs font-semibold outline-none focus:border-sage"
+                  />
+                </div>
+              </div>
+
+              {/* Calories & Macros Grid */}
+              <div className="grid grid-cols-4 gap-1.5 pt-1">
+                <div className="p-2 rounded-xl bg-amber-50 border border-amber-200/50 text-center">
+                  <span className="text-[9px] font-bold text-amber-800 uppercase block">Calories</span>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={editCalories}
+                    onChange={(e) => setEditCalories(Number(e.target.value))}
+                    className="w-full text-center bg-transparent font-extrabold text-xs text-charcoal outline-none focus:bg-white rounded"
+                  />
+                  <span className="text-[9px] text-charcoal/50">kcal</span>
+                </div>
+
+                <div className="p-2 rounded-xl bg-sky-50 border border-sky-200/50 text-center">
+                  <span className="text-[9px] font-bold text-sky-800 uppercase block">Carbs</span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={editCarbs}
+                    onChange={(e) => setEditCarbs(Number(e.target.value))}
+                    className="w-full text-center bg-transparent font-extrabold text-xs text-charcoal outline-none focus:bg-white rounded"
+                  />
+                  <span className="text-[9px] text-charcoal/50">grams</span>
+                </div>
+
+                <div className="p-2 rounded-xl bg-yellow-50 border border-yellow-200/50 text-center">
+                  <span className="text-[9px] font-bold text-yellow-800 uppercase block">Protein</span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={editProtein}
+                    onChange={(e) => setEditProtein(Number(e.target.value))}
+                    className="w-full text-center bg-transparent font-extrabold text-xs text-charcoal outline-none focus:bg-white rounded"
+                  />
+                  <span className="text-[9px] text-charcoal/50">grams</span>
+                </div>
+
+                <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200/50 text-center">
+                  <span className="text-[9px] font-bold text-emerald-800 uppercase block">Fat</span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={editFat}
+                    onChange={(e) => setEditFat(Number(e.target.value))}
+                    className="w-full text-center bg-transparent font-extrabold text-xs text-charcoal outline-none focus:bg-white rounded"
+                  />
+                  <span className="text-[9px] text-charcoal/50">grams</span>
+                </div>
+              </div>
+
+              {/* Assumptions & Uncertainty Box */}
+              <div className="p-2.5 rounded-xl bg-cream/70 border border-charcoal/5 text-[11px] text-charcoal/75 space-y-1">
+                <div className="flex items-start gap-1.5">
+                  <Info className="w-3.5 h-3.5 text-sage flex-shrink-0 mt-0.5" />
+                  <p>
+                    <strong className="text-charcoal">Preparation Assumption:</strong> {estimateData.assumptions}
+                  </p>
+                </div>
+                {estimateData.uncertainty_note && (
+                  <p className="text-[10px] text-charcoal/60 pl-5">
+                    {estimateData.uncertainty_note}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {saveError && (
+            <div className="p-2.5 rounded-xl bg-red-50 text-red-700 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{saveError}</span>
+            </div>
+          )}
         </div>
 
-        {estimateError && (
-          <div className="mt-4 p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{estimateError}</span>
-          </div>
-        )}
+        {/* Pinned Modal Action Footer - ALWAYS VISIBLE WITHOUT SCROLLING! */}
+        <div className="p-3 sm:p-4 bg-cream/40 border-t border-charcoal/10 flex items-center justify-between gap-3 flex-shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2.5 rounded-xl border border-charcoal/15 text-charcoal/70 hover:text-charcoal hover:bg-cream text-xs font-semibold transition"
+          >
+            Cancel
+          </button>
 
-        {/* Review & Edit Section (Once Estimated) */}
-        {estimateData && (
-          <div className="mt-6 pt-5 border-t border-charcoal/10 space-y-4 animate-fade-in">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold uppercase tracking-wider text-charcoal flex items-center gap-1.5">
-                <Check className="w-4 h-4 text-sage" />
-                Review & Edit Before Saving
-              </span>
-              <span className="text-[11px] text-charcoal/50">Estimates are editable</span>
-            </div>
-
-            {/* Editable Fields */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="sm:col-span-2">
-                <label className="block text-[11px] font-bold text-charcoal/60 mb-1">Food Name</label>
-                <input
-                  type="text"
-                  value={editFoodName}
-                  onChange={(e) => setEditFoodName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-cream/50 rounded-xl border border-charcoal/10 text-charcoal text-sm font-semibold outline-none focus:border-sage"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-charcoal/60 mb-1">Quantity</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={editQuantity}
-                  onChange={(e) => setEditQuantity(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-cream/50 rounded-xl border border-charcoal/10 text-charcoal text-sm font-semibold outline-none focus:border-sage"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-charcoal/60 mb-1">Serving Unit</label>
-                <input
-                  type="text"
-                  value={editUnit}
-                  onChange={(e) => setEditUnit(e.target.value)}
-                  placeholder="e.g. piece, bowl, katori"
-                  className="w-full px-3 py-2 bg-cream/50 rounded-xl border border-charcoal/10 text-charcoal text-sm font-semibold outline-none focus:border-sage"
-                />
-              </div>
-            </div>
-
-            {/* Calories & Macros Grid */}
-            <div className="grid grid-cols-4 gap-2 pt-1">
-              <div className="p-2.5 rounded-2xl bg-amber-50 border border-amber-200/50 text-center">
-                <span className="text-[10px] font-bold text-amber-800 uppercase block">Calories</span>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={editCalories}
-                  onChange={(e) => setEditCalories(Number(e.target.value))}
-                  className="w-full text-center bg-transparent font-extrabold text-sm text-charcoal outline-none focus:bg-white rounded"
-                />
-                <span className="text-[10px] text-charcoal/50">kcal</span>
-              </div>
-
-              <div className="p-2.5 rounded-2xl bg-sky-50 border border-sky-200/50 text-center">
-                <span className="text-[10px] font-bold text-sky-800 uppercase block">Carbs</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={editCarbs}
-                  onChange={(e) => setEditCarbs(Number(e.target.value))}
-                  className="w-full text-center bg-transparent font-extrabold text-sm text-charcoal outline-none focus:bg-white rounded"
-                />
-                <span className="text-[10px] text-charcoal/50">grams</span>
-              </div>
-
-              <div className="p-2.5 rounded-2xl bg-yellow-50 border border-yellow-200/50 text-center">
-                <span className="text-[10px] font-bold text-yellow-800 uppercase block">Protein</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={editProtein}
-                  onChange={(e) => setEditProtein(Number(e.target.value))}
-                  className="w-full text-center bg-transparent font-extrabold text-sm text-charcoal outline-none focus:bg-white rounded"
-                />
-                <span className="text-[10px] text-charcoal/50">grams</span>
-              </div>
-
-              <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200/50 text-center">
-                <span className="text-[10px] font-bold text-emerald-800 uppercase block">Fat</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={editFat}
-                  onChange={(e) => setEditFat(Number(e.target.value))}
-                  className="w-full text-center bg-transparent font-extrabold text-sm text-charcoal outline-none focus:bg-white rounded"
-                />
-                <span className="text-[10px] text-charcoal/50">grams</span>
-              </div>
-            </div>
-
-            {/* Assumptions & Uncertainty Box */}
-            <div className="p-3.5 rounded-2xl bg-cream/70 border border-charcoal/5 text-xs text-charcoal/75 space-y-1.5">
-              <div className="flex items-start gap-2">
-                <Info className="w-4 h-4 text-sage flex-shrink-0 mt-0.5" />
-                <p>
-                  <strong className="text-charcoal">Preparation Assumption:</strong> {estimateData.assumptions}
-                </p>
-              </div>
-              {estimateData.uncertainty_note && (
-                <p className="text-[11px] text-charcoal/60 pl-6">
-                  {estimateData.uncertainty_note}
-                </p>
-              )}
-            </div>
-
-            {saveError && (
-              <div className="p-3 rounded-2xl bg-red-50 text-red-700 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{saveError}</span>
-              </div>
+          <button
+            type="button"
+            onClick={handleSaveToLog}
+            disabled={isSaving || !estimateData}
+            className="flex-1 py-2.5 px-4 bg-charcoal text-cream font-bold rounded-xl hover:bg-charcoal-light transition shadow-soft flex items-center justify-center gap-2 disabled:opacity-50 text-xs"
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Saving to Log...</span>
+              </>
+            ) : (
+              <>
+                <span>
+                  {hasMultipleItems
+                    ? `Confirm & Save All Items (${Math.round(editCalories)} kcal)`
+                    : `Save to ${mealType.toUpperCase()} Log (${Math.round(editCalories)} kcal)`}
+                </span>
+                <Check className="w-3.5 h-3.5 text-sage" />
+              </>
             )}
-
-            {/* Confirm & Save Button */}
-            <button
-              type="button"
-              onClick={handleSaveToLog}
-              disabled={isSaving}
-              className="w-full py-3.5 px-4 bg-charcoal text-cream font-bold rounded-2xl hover:bg-charcoal-light transition shadow-soft flex items-center justify-center gap-2 disabled:opacity-75 text-sm"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Saving to Log...</span>
-                </>
-              ) : (
-                <>
-                  <span>Save to Today&apos;s {mealType.toUpperCase()} Log</span>
-                  <Check className="w-4 h-4 text-sage" />
-                </>
-              )}
-            </button>
-          </div>
-        )}
+          </button>
+        </div>
       </div>
     </div>
   );

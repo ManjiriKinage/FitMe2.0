@@ -45,32 +45,32 @@ export default function NutritionSummary({
   ];
 
   return (
-    <div className="bg-white rounded-4xl p-6 sm:p-7 border border-mint shadow-soft flex flex-col justify-between">
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="font-extrabold text-lg text-charcoal tracking-tight">Daily Recap</h3>
-        <span className="text-xs text-charcoal/50 font-medium">Macronutrients</span>
+    <div className="bg-white rounded-3xl p-4 sm:p-5 border border-mint shadow-soft flex flex-col justify-between">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-extrabold text-base text-charcoal tracking-tight">Daily Recap</h3>
+        <span className="text-[11px] text-charcoal/50 font-medium">Macronutrients</span>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-2.5">
         {items.map((item) => (
           <div
             key={item.label}
-            className="p-3.5 rounded-3xl bg-cream/50 border border-charcoal/5 flex items-center justify-between gap-4 card-hover"
+            className="p-2.5 rounded-2xl bg-cream/50 border border-charcoal/5 flex items-center justify-between gap-3 card-hover"
           >
             {/* Pill Value Badge */}
-            <div className={`px-4 py-2 rounded-2xl font-bold text-sm tracking-tight flex-shrink-0 ${item.badgeBg}`}>
+            <div className={`px-3 py-1.5 rounded-xl font-bold text-xs tracking-tight flex-shrink-0 ${item.badgeBg}`}>
               {item.current}g
             </div>
 
             {/* Label and Progress Bar */}
             <div className="flex-1">
-              <div className="flex justify-between items-center text-xs mb-1.5">
-                <span className="font-bold text-charcoal">{item.label}</span>
-                <span className="font-semibold text-charcoal/50">
+              <div className="flex justify-between items-center text-xs mb-1">
+                <span className="font-bold text-charcoal text-xs">{item.label}</span>
+                <span className="font-semibold text-charcoal/50 text-[11px]">
                   {item.pct}% <span className="text-[10px]">/ {item.target}g</span>
                 </span>
               </div>
-              <div className="w-full h-2 bg-charcoal/10 rounded-full overflow-hidden">
+              <div className="w-full h-1.5 bg-charcoal/10 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-charcoal rounded-full transition-all duration-500 ease-out"
                   style={{ width: `${item.pct}%` }}

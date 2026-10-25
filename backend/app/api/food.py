@@ -8,11 +8,15 @@ from app.schemas.food import (
     AIEstimateResponse,
     ParsedFoodItem,
     FoodLogCreate,
+    FoodLogUpdate,
     FoodLogResponse,
     RecipeSearchResult,
+    RecipeDetailResponse,
     FoodFeedbackRequest,
     BatchFoodLogRequest,
-    BatchFoodLogResponse
+    BatchFoodLogResponse,
+    UserPreferenceResponse,
+    UserPreferenceUpdate
 )
 from app.services.nutrition_engine import nutrition_engine
 from app.services.user_learning import UserPreferenceLearningEngine
@@ -132,12 +136,42 @@ async def search_food_catalog(
         for m in matches
     ]
 
+@router.get("/recipes/{recipe_code}", response_model=RecipeDetailResponse)
+async def get_recipe_detail(recipe_code: str):
+    """Retrieves verified recipe and serving details for an INDB recipe."""
+    code = recipe_code.strip()
+    r = nutrition_engine._recipes.get(code)
+    if not r:
+        raise HTTPException(status_code=404, detail=f"Recipe '{code}' not found in official catalog.")
+
+    return RecipeDetailResponse(
+        source_recipe_code=r["source_recipe_code"],
+        name=r["name"],
+        normalized_name=r["normalized_name"],
+        aliases=r.get("aliases", []),
+        reported_serving_unit=r.get("reported_serving_unit", "serving"),
+        reported_serving_size_g=r.get("reported_serving_size_g", 150.0),
+        serving_energy_kcal=r.get("serving_energy_kcal"),
+        serving_protein_g=r.get("serving_protein_g"),
+        serving_carbohydrates_g=r.get("serving_carbohydrates_g"),
+        serving_fat_g=r.get("serving_fat_g"),
+        reported_energy_kcal_per_100g=r["reported_energy_kcal_per_100g"],
+        reported_protein_g_per_100g=r.get("reported_protein_g_per_100g"),
+        reported_carbohydrates_g_per_100g=r.get("reported_carbohydrates_g_per_100g"),
+        reported_fat_g_per_100g=r.get("reported_fat_g_per_100g"),
+        reported_fiber_g_per_100g=r.get("reported_fiber_g_per_100g")
+    )
+
 @router.get("/logs", response_model=List[FoodLogResponse])
 async def get_food_logs(
     date: Optional[str] = Query(None, description="ISO Date string YYYY-MM-DD"),
+    start_date: Optional[str] = Query(None, description="Range start YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="Range end YYYY-MM-DD"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Fetches food logs for the authenticated user, optionally filtered by local date."""
+    """Fetches food logs for the authenticated user with optional date filtering and pagination."""
     client = get_supabase_admin_client(user) or get_supabase_anon_client()
     if not client:
         raise HTTPException(status_code=500, detail="Database client not configured.")
@@ -145,12 +179,16 @@ async def get_food_logs(
     query = client.table("food_logs").select("*").eq("user_id", user["id"])
     
     if date:
-        # Filter range for full day [date 00:00:00 to date 23:59:59]
         start_ts = f"{date}T00:00:00Z"
         end_ts = f"{date}T23:59:59Z"
         query = query.gte("logged_at", start_ts).lte("logged_at", end_ts)
+    elif start_date and end_date:
+        start_ts = f"{start_date}T00:00:00Z"
+        end_ts = f"{end_date}T23:59:59Z"
+        query = query.gte("logged_at", start_ts).lte("logged_at", end_ts)
 
-    res = query.order("logged_at", desc=False).execute()
+    offset = (page - 1) * page_size
+    res = query.order("logged_at", desc=True).range(offset, offset + page_size - 1).execute()
     return res.data or []
 
 @router.post("/logs", response_model=FoodLogResponse)
@@ -189,7 +227,6 @@ async def create_food_log(
 
     saved_row = res.data[0]
 
-    # Asynchronously / idempotently record user portion preference
     try:
         UserPreferenceLearningEngine.record_confirmed_log(
             client=client,
@@ -203,6 +240,56 @@ async def create_food_log(
 
     return saved_row
 
+@router.put("/logs/{log_id}", response_model=FoodLogResponse)
+async def update_food_log(
+    log_id: str,
+    payload: FoodLogUpdate,
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Edits an existing food log entry.
+    Replaces its contribution cleanly without duplicating items in dashboard totals.
+    """
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
+    if not client:
+        raise HTTPException(status_code=500, detail="Database client not configured.")
+
+    # Check ownership
+    existing = client.table("food_logs").select("*").eq("id", log_id).eq("user_id", user["id"]).execute()
+    if not existing.data or len(existing.data) == 0:
+        raise HTTPException(status_code=404, detail="Food log not found or access denied.")
+
+    update_data: Dict[str, Any] = {}
+    if payload.food_name is not None: update_data["food_name"] = payload.food_name
+    if payload.quantity is not None: update_data["quantity"] = payload.quantity
+    if payload.unit is not None: update_data["unit"] = payload.unit
+    if payload.estimated_calories is not None: update_data["estimated_calories"] = payload.estimated_calories
+    if payload.protein_g is not None: update_data["protein_g"] = payload.protein_g
+    if payload.carbohydrates_g is not None: update_data["carbohydrates_g"] = payload.carbohydrates_g
+    if payload.fat_g is not None: update_data["fat_g"] = payload.fat_g
+    if payload.meal_type is not None: update_data["meal_type"] = payload.meal_type
+    if payload.logged_at is not None: update_data["logged_at"] = payload.logged_at.isoformat()
+
+    res = client.table("food_logs").update(update_data).eq("id", log_id).eq("user_id", user["id"]).execute()
+    if not res.data:
+        raise HTTPException(status_code=400, detail="Failed to update food log.")
+
+    updated_row = res.data[0]
+
+    # Update preference learning with updated portion
+    try:
+        UserPreferenceLearningEngine.record_confirmed_log(
+            client=client,
+            user_id=user["id"],
+            food_name=updated_row["food_name"],
+            quantity=updated_row["quantity"],
+            serving_unit=updated_row["unit"]
+        )
+    except Exception:
+        pass
+
+    return updated_row
+
 @router.delete("/logs/{log_id}")
 async def delete_food_log(
     log_id: str,
@@ -215,6 +302,66 @@ async def delete_food_log(
 
     res = client.table("food_logs").delete().eq("id", log_id).eq("user_id", user["id"]).execute()
     return {"message": "Food log deleted successfully", "id": log_id}
+
+# ==============================================================================
+# USER FOOD PREFERENCE LEARNING ENDPOINTS (PHASE 7)
+# ==============================================================================
+
+@router.get("/preferences", response_model=List[UserPreferenceResponse])
+async def list_user_preferences(user: Dict[str, Any] = Depends(get_current_user)):
+    """Lists learned food preferences for the authenticated user."""
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
+    if not client:
+        raise HTTPException(status_code=500, detail="Database client not configured.")
+    return UserPreferenceLearningEngine.list_user_preferences(client, user["id"])
+
+@router.put("/preferences/{pref_id}", response_model=UserPreferenceResponse)
+async def update_user_preference(
+    pref_id: str,
+    payload: UserPreferenceUpdate,
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Updates a user's learned portion preference explicitly."""
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
+    if not client:
+        raise HTTPException(status_code=500, detail="Database client not configured.")
+
+    res = UserPreferenceLearningEngine.update_user_preference(
+        client=client,
+        user_id=user["id"],
+        pref_id=pref_id,
+        quantity=payload.preferred_serving_quantity,
+        serving_unit=payload.preferred_serving_unit,
+        serving_weight_g=payload.preferred_serving_weight_g
+    )
+    if not res:
+        raise HTTPException(status_code=404, detail="Preference not found or access denied.")
+    return res
+
+@router.delete("/preferences/{pref_id}")
+async def delete_user_preference(
+    pref_id: str,
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Deletes a single learned preference for the authenticated user."""
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
+    if not client:
+        raise HTTPException(status_code=500, detail="Database client not configured.")
+
+    ok = UserPreferenceLearningEngine.delete_user_preference(client, user["id"], pref_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Preference not found or could not be deleted.")
+    return {"message": "Preference deleted successfully", "id": pref_id}
+
+@router.delete("/preferences")
+async def clear_all_user_preferences(user: Dict[str, Any] = Depends(get_current_user)):
+    """Clears all learned preferences for the authenticated user."""
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
+    if not client:
+        raise HTTPException(status_code=500, detail="Database client not configured.")
+
+    UserPreferenceLearningEngine.clear_user_preferences(client, user["id"])
+    return {"message": "All preferences cleared successfully"}
 
 @router.post("/confirm", response_model=BatchFoodLogResponse)
 async def confirm_and_save_meal(

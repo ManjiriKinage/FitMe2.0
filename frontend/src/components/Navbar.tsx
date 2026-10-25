@@ -41,55 +41,72 @@ export default function Navbar({ onOpenAddFood, userFullName }: NavbarProps) {
   return (
     <>
       {/* Desktop Vertical Sidebar */}
-      <aside className="hidden md:flex flex-col justify-between items-center w-20 py-8 bg-charcoal text-cream rounded-r-4xl my-4 ml-4 shadow-soft-lg flex-shrink-0 z-30">
-        {/* Logo */}
-        <div className="flex flex-col items-center gap-1">
-          <Link href="/home" className="w-12 h-12 rounded-2xl bg-charcoal-light flex items-center justify-center text-cream font-bold text-lg hover:ring-2 hover:ring-sage/40 transition">
-            <span className="text-sage font-black">.</span>Fit
+      <aside className="hidden md:flex flex-col justify-between w-60 p-5 bg-charcoal text-cream rounded-3xl my-4 ml-4 shadow-soft-lg flex-shrink-0 z-30">
+        <div>
+          {/* Logo */}
+          <Link href="/home" className="flex items-center gap-3 px-2 py-1.5 group">
+            <div className="w-10 h-10 rounded-2xl bg-sage/20 border border-sage/40 flex items-center justify-center text-sage font-black text-xl group-hover:scale-105 transition">
+              .F
+            </div>
+            <div className="flex flex-col">
+              <span className="font-extrabold text-lg text-cream tracking-tight leading-none">FitMe</span>
+              <span className="text-[10px] text-cream/50 font-medium mt-0.5">INDB Nutrition</span>
+            </div>
           </Link>
+
+          {/* Navigation Links with Text Labels */}
+          <nav className="flex flex-col gap-1.5 w-full mt-7">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all ${
+                    isActive
+                      ? "bg-sage text-charcoal shadow-soft font-bold"
+                      : "text-cream/70 hover:text-cream hover:bg-charcoal-light"
+                  }`}
+                >
+                  <Icon className="w-4 h-4 flex-shrink-0" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+
+            {/* Quick Add Food Button */}
+            {onOpenAddFood && (
+              <button
+                onClick={onOpenAddFood}
+                className="mt-3 flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-sage/20 border border-sage/40 text-sage hover:bg-sage hover:text-charcoal text-xs font-bold transition shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Food</span>
+              </button>
+            )}
+          </nav>
         </div>
 
-        {/* Navigation Icons */}
-        <nav className="flex flex-col items-center gap-6">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={item.label}
-                className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
-                  isActive
-                    ? "bg-sage text-charcoal font-bold shadow-glow scale-105"
-                    : "text-cream/60 hover:text-cream hover:bg-charcoal-light"
-                }`}
-              >
-                <Icon className="w-5 h-5" />
-              </Link>
-            );
-          })}
-
-          {/* Quick Add Food Floating Action in Sidebar */}
-          {onOpenAddFood && (
-            <button
-              onClick={onOpenAddFood}
-              title="Add Food"
-              className="w-12 h-12 rounded-2xl bg-cream/10 hover:bg-cream/20 text-cream flex items-center justify-center transition hover:scale-105"
-            >
-              <Plus className="w-6 h-6 text-sage" />
-            </button>
-          )}
-        </nav>
-
-        {/* Bottom Actions */}
-        <div className="flex flex-col items-center gap-4">
+        {/* Bottom Profile & Logout Card */}
+        <div className="w-full pt-4 border-t border-charcoal-light flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="w-8 h-8 rounded-xl bg-charcoal-light flex items-center justify-center text-sage font-bold text-xs uppercase flex-shrink-0">
+              {userFullName ? userFullName.slice(0, 2) : "ME"}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-cream truncate leading-tight">
+                {userFullName || "FitMe User"}
+              </p>
+              <p className="text-[10px] text-cream/50 truncate">Personalized</p>
+            </div>
+          </div>
           <button
             onClick={handleLogout}
             title="Log Out"
-            className="w-11 h-11 rounded-2xl flex items-center justify-center text-cream/50 hover:text-red-300 hover:bg-red-950/30 transition"
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-cream/50 hover:text-red-300 hover:bg-red-950/30 transition flex-shrink-0"
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       </aside>
