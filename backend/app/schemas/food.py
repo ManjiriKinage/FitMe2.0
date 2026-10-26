@@ -53,7 +53,7 @@ class FoodLogCreate(BaseModel):
     protein_g: float = Field(0.0, ge=0)
     carbohydrates_g: float = Field(0.0, ge=0)
     fat_g: float = Field(0.0, ge=0)
-    meal_type: MealType
+    meal_type: Optional[MealType] = "lunch"
     logged_at: Optional[datetime] = None
     food_id: Optional[str] = None
     profile_id: Optional[str] = None

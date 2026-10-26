@@ -104,6 +104,9 @@ export default function FoodLogForm({
             protein_g: it.protein_g,
             carbohydrates_g: it.carbohydrates_g,
             fat_g: it.fat_g,
+            meal_type: mealType,
+            food_id: it.food_id || null,
+            profile_id: it.profile_id || null,
           })),
         });
 

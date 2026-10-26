@@ -424,7 +424,7 @@ async def confirm_and_save_meal(
             "protein_g": item.protein_g,
             "carbohydrates_g": item.carbohydrates_g,
             "fat_g": item.fat_g,
-            "meal_type": payload.meal_type,
+            "meal_type": item.meal_type or payload.meal_type or "lunch",
             "logged_at": log_time,
             "created_at": now_iso
         }

@@ -89,3 +89,34 @@ def test_daily_dashboard_exceeded_target_non_negative():
     # Calories remaining must not be negative
     assert summary.calories_remaining == 0.0
     assert summary.calories_consumed == 1800.0
+
+
+def test_batch_food_log_request_validation():
+    from app.schemas.food import BatchFoodLogRequest
+    req = BatchFoodLogRequest(
+        meal_type="dinner",
+        items=[
+            {
+                "food_name": "Chapati",
+                "quantity": 2.0,
+                "unit": "piece",
+                "estimated_calories": 210.0,
+                "protein_g": 6.0,
+                "carbohydrates_g": 36.0,
+                "fat_g": 4.5
+            },
+            {
+                "food_name": "Dal",
+                "quantity": 1.0,
+                "unit": "bowl",
+                "estimated_calories": 116.0,
+                "protein_g": 6.8,
+                "carbohydrates_g": 16.5,
+                "fat_g": 2.2,
+                "meal_type": "dinner"
+            }
+        ]
+    )
+    assert len(req.items) == 2
+    assert req.items[0].estimated_calories == 210.0
+    assert req.items[1].meal_type == "dinner"

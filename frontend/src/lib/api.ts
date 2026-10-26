@@ -35,7 +35,17 @@ async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Pr
     let errorDetail = "Network request failed";
     try {
       const errJson = await response.json();
-      errorDetail = errJson.detail || JSON.stringify(errJson);
+      if (typeof errJson.detail === "string") {
+        errorDetail = errJson.detail;
+      } else if (Array.isArray(errJson.detail)) {
+        errorDetail = errJson.detail
+          .map((e: any) => (typeof e === "string" ? e : (e.msg || JSON.stringify(e))))
+          .join("; ");
+      } else if (errJson.detail) {
+        errorDetail = JSON.stringify(errJson.detail);
+      } else {
+        errorDetail = JSON.stringify(errJson);
+      }
     } catch {
       errorDetail = await response.text();
     }

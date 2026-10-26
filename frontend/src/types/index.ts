@@ -53,6 +53,8 @@ export interface ParsedFoodItem {
   uncertainty_note?: string | null;
   assumptions?: string | null;
   validation_status?: string | null;
+  food_id?: string | null;
+  profile_id?: string | null;
 }
 
 export interface AIEstimateResponse {
@@ -128,6 +130,9 @@ export interface BatchFoodLogConfirmRequest {
     protein_g: number;
     carbohydrates_g: number;
     fat_g: number;
+    meal_type?: MealType;
+    food_id?: string | null;
+    profile_id?: string | null;
   }[];
   logged_at?: string;
 }
