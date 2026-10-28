@@ -15,6 +15,8 @@ import {
   Search,
   Bell,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   Plus,
   Loader2,
   Droplets,
@@ -43,6 +45,16 @@ export default function DashboardHomePage() {
   };
 
   const [selectedDate, setSelectedDate] = useState<string>(getTodayStr());
+
+  const shiftDate = (days: number) => {
+    const [y, m, d] = selectedDate.split("-").map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    dateObj.setDate(dateObj.getDate() + days);
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    setSelectedDate(`${year}-${month}-${day}`);
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -143,10 +155,48 @@ export default function DashboardHomePage() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            {/* Date Display */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-white border border-charcoal/10 text-xs font-semibold text-charcoal shadow-sm">
-              <Calendar className="w-3.5 h-3.5 text-sage" />
-              <span>{selectedDate}</span>
+            {/* Interactive Date Navigator */}
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-2xl bg-white border border-charcoal/10 text-xs font-semibold text-charcoal shadow-sm">
+              <button
+                type="button"
+                onClick={() => shiftDate(-1)}
+                title="Previous Day"
+                className="w-6 h-6 rounded-lg hover:bg-cream flex items-center justify-center text-charcoal/70 hover:text-charcoal transition"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+
+              <label className="flex items-center gap-1.5 cursor-pointer px-1">
+                <Calendar className="w-3.5 h-3.5 text-sage" />
+                <span>{selectedDate === getTodayStr() ? `Today (${selectedDate})` : selectedDate}</span>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => {
+                    if (e.target.value) setSelectedDate(e.target.value);
+                  }}
+                  className="sr-only"
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={() => shiftDate(1)}
+                title="Next Day"
+                className="w-6 h-6 rounded-lg hover:bg-cream flex items-center justify-center text-charcoal/70 hover:text-charcoal transition"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+
+              {selectedDate !== getTodayStr() && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(getTodayStr())}
+                  className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sage text-white hover:bg-sage-600 transition"
+                >
+                  Today
+                </button>
+              )}
             </div>
 
             {/* Notification Bell */}

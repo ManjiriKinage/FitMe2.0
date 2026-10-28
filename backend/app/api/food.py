@@ -2,6 +2,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
+import zoneinfo
+import logging
 from app.db.supabase import get_current_user, get_supabase_admin_client, get_supabase_anon_client
 from app.schemas.food import (
     AIEstimateRequest,
@@ -20,6 +22,8 @@ from app.schemas.food import (
 )
 from app.services.nutrition_engine import nutrition_engine
 from app.services.user_learning import UserPreferenceLearningEngine
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/food", tags=["Food & AI Estimation"])
 
@@ -177,6 +181,7 @@ async def get_food_logs(
     date: Optional[str] = Query(None, description="ISO Date string YYYY-MM-DD"),
     start_date: Optional[str] = Query(None, description="Range start YYYY-MM-DD"),
     end_date: Optional[str] = Query(None, description="Range end YYYY-MM-DD"),
+    tz: Optional[str] = Query(None, description="User timezone (e.g. Asia/Kolkata, America/New_York)"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
     user: Dict[str, Any] = Depends(get_current_user)
@@ -188,13 +193,30 @@ async def get_food_logs(
 
     query = client.table("food_logs").select("*").eq("user_id", user["id"])
     
+    try:
+        user_tz = zoneinfo.ZoneInfo(tz) if tz else timezone.utc
+    except Exception:
+        user_tz = timezone.utc
+
     if date:
-        start_ts = f"{date}T00:00:00Z"
-        end_ts = f"{date}T23:59:59Z"
+        try:
+            start_local = datetime.strptime(f"{date} 00:00:00", "%Y-%m-%d %H:%M:%S").replace(tzinfo=user_tz)
+            end_local = datetime.strptime(f"{date} 23:59:59.999999", "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=user_tz)
+            start_ts = start_local.astimezone(timezone.utc).isoformat()
+            end_ts = end_local.astimezone(timezone.utc).isoformat()
+        except Exception:
+            start_ts = f"{date}T00:00:00Z"
+            end_ts = f"{date}T23:59:59Z"
         query = query.gte("logged_at", start_ts).lte("logged_at", end_ts)
     elif start_date and end_date:
-        start_ts = f"{start_date}T00:00:00Z"
-        end_ts = f"{end_date}T23:59:59Z"
+        try:
+            start_local = datetime.strptime(f"{start_date} 00:00:00", "%Y-%m-%d %H:%M:%S").replace(tzinfo=user_tz)
+            end_local = datetime.strptime(f"{end_date} 23:59:59.999999", "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=user_tz)
+            start_ts = start_local.astimezone(timezone.utc).isoformat()
+            end_ts = end_local.astimezone(timezone.utc).isoformat()
+        except Exception:
+            start_ts = f"{start_date}T00:00:00Z"
+            end_ts = f"{end_date}T23:59:59Z"
         query = query.gte("logged_at", start_ts).lte("logged_at", end_ts)
 
     offset = (page - 1) * page_size
@@ -235,7 +257,14 @@ async def create_food_log(
     if payload.profile_id:
         record["profile_id"] = payload.profile_id
 
-    res = client.table("food_logs").insert(record).execute()
+    try:
+        res = client.table("food_logs").insert(record).execute()
+    except Exception as e:
+        logger.warning(f"Insert failed with IDs, retrying without food_id/profile_id: {e}")
+        record.pop("food_id", None)
+        record.pop("profile_id", None)
+        res = client.table("food_logs").insert(record).execute()
+
     if not res.data:
         raise HTTPException(status_code=400, detail="Failed to save food log entry.")
 
@@ -432,7 +461,15 @@ async def confirm_and_save_meal(
             row_data["food_id"] = item.food_id
         if item.profile_id:
             row_data["profile_id"] = item.profile_id
-        res = client.table("food_logs").insert(row_data).execute()
+
+        try:
+            res = client.table("food_logs").insert(row_data).execute()
+        except Exception as e:
+            logger.warning(f"Batch item insert failed with IDs, retrying without food_id/profile_id: {e}")
+            row_data.pop("food_id", None)
+            row_data.pop("profile_id", None)
+            res = client.table("food_logs").insert(row_data).execute()
+
         if res.data:
             saved_row = res.data[0]
             saved_logs.append(FoodLogResponse.model_validate(saved_row))
@@ -449,6 +486,13 @@ async def confirm_and_save_meal(
                 )
             except Exception:
                 pass
+
+    if not saved_logs and payload.items:
+        logger.error(f"Failed to insert any food items for user {user['id']}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to save food log entries. Please check the food details and try again."
+        )
 
     return BatchFoodLogResponse(
         success=True,

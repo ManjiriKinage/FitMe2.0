@@ -96,6 +96,7 @@ export default function FoodLogForm({
       if (estimateData?.items && estimateData.items.length > 1) {
         const batchRes = await api.confirmMeal({
           meal_type: mealType,
+          logged_at: new Date().toISOString(),
           items: estimateData.items.map((it) => ({
             food_name: it.food_name,
             quantity: it.quantity,
@@ -110,8 +111,10 @@ export default function FoodLogForm({
           })),
         });
 
-        if (batchRes.saved_logs.length > 0) {
+        if (batchRes.saved_logs && batchRes.saved_logs.length > 0) {
           onSuccess(batchRes.saved_logs[0]);
+        } else {
+          onSuccess({} as any);
         }
       } else {
         // Single item save

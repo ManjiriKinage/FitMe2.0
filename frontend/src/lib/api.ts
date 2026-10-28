@@ -15,10 +15,20 @@ import {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+export function getUserTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
 async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = await getAuthToken();
+  const userTz = getUserTimezone();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    ...(userTz ? { "X-Timezone": userTz } : {}),
     ...(options.headers as Record<string, string> || {}),
   };
 
@@ -117,9 +127,11 @@ export const api = {
     return fetchWithAuth<RecipeDetailResponse>(`/api/food/recipes/${encodeURIComponent(recipeCode)}`);
   },
 
-  getFoodLogs: async (date?: string, page: number = 1, pageSize: number = 50): Promise<FoodLogItem[]> => {
+  getFoodLogs: async (date?: string, page: number = 1, pageSize: number = 50, tz?: string): Promise<FoodLogItem[]> => {
+    const userTz = tz || getUserTimezone();
     const params = new URLSearchParams();
     if (date) params.append("date", date);
+    if (userTz) params.append("tz", userTz);
     if (page > 1) params.append("page", String(page));
     if (pageSize !== 50) params.append("page_size", String(pageSize));
     const queryStr = params.toString() ? `?${params.toString()}` : "";
@@ -181,8 +193,12 @@ export const api = {
   },
 
   // Dashboard Aggregation
-  getDashboard: async (date?: string): Promise<DashboardSummary> => {
-    const queryStr = date ? `?date=${encodeURIComponent(date)}` : "";
+  getDashboard: async (date?: string, tz?: string): Promise<DashboardSummary> => {
+    const userTz = tz || getUserTimezone();
+    const params = new URLSearchParams();
+    if (date) params.append("date", date);
+    if (userTz) params.append("tz", userTz);
+    const queryStr = params.toString() ? `?${params.toString()}` : "";
     return fetchWithAuth<DashboardSummary>(`/api/dashboard${queryStr}`);
   },
 };

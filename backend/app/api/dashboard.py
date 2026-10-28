@@ -1,5 +1,5 @@
 """Dashboard aggregation API endpoint."""
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 from app.db.supabase import get_current_user, get_supabase_admin_client, get_supabase_anon_client
@@ -15,6 +15,7 @@ router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 async def get_dashboard(
     date: Optional[str] = Query(None, description="Local date YYYY-MM-DD"),
     tz: Optional[str] = Query(None, description="User timezone (e.g. Asia/Kolkata, America/New_York)"),
+    x_timezone: Optional[str] = Header(None, alias="X-Timezone"),
     user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
@@ -36,13 +37,13 @@ async def get_dashboard(
         target_cals = 2000
         fitness_goal = "maintain_weight"
         current_weight = 70.0
-        user_tz_name = tz or "UTC"
+        user_tz_name = tz or x_timezone or "UTC"
     else:
         profile = p_res.data[0]
         target_cals = int(profile.get("daily_calorie_target", 2000))
         fitness_goal = profile.get("fitness_goal", "maintain_weight")
         current_weight = float(profile.get("current_weight_kg", 70.0))
-        user_tz_name = tz or profile.get("timezone") or "UTC"
+        user_tz_name = tz or x_timezone or profile.get("timezone") or "UTC"
 
     # Validate timezone
     try:
