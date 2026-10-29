@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { FoodLogItem, MealType } from "@/types";
-import { ChevronDown, ChevronUp, Trash2, Plus, Coffee, Sun, Sunset, Cookie } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2, Plus, Camera, Coffee, Sun, Sunset, Cookie } from "lucide-react";
 
 interface FoodLogListProps {
   meals: Record<MealType, FoodLogItem[]>;
   remainingCalories: number;
   onOpenAddFood: (mealType?: MealType) => void;
+  onOpenScanMeal?: (mealType?: MealType) => void;
   onDeleteFood: (id: string) => Promise<void>;
 }
 
@@ -15,6 +16,7 @@ export default function FoodLogList({
   meals,
   remainingCalories,
   onOpenAddFood,
+  onOpenScanMeal,
   onDeleteFood,
 }: FoodLogListProps) {
   const [expandedMeal, setExpandedMeal] = useState<MealType | null>("lunch");
@@ -124,16 +126,28 @@ export default function FoodLogList({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
                     <span className="font-extrabold text-sm sm:text-base text-charcoal">
                       {mealCalories} <span className="text-xs font-medium text-charcoal/60">Kcal</span>
                     </span>
+                    {onOpenScanMeal && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenScanMeal(key);
+                        }}
+                        title={`Scan plate for ${label}`}
+                        className="w-8 h-8 rounded-xl bg-white/90 hover:bg-white text-charcoal/70 hover:text-sage flex items-center justify-center shadow-sm transition hover:scale-105"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onOpenAddFood(key);
                       }}
-                      title={`Add to ${label}`}
+                      title={`Add typed food to ${label}`}
                       className="w-8 h-8 rounded-xl bg-white/90 hover:bg-white text-charcoal flex items-center justify-center shadow-sm transition hover:scale-105"
                     >
                       <Plus className="w-4 h-4 text-sage-700" />

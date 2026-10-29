@@ -11,6 +11,11 @@ import {
   UserPreferenceItem,
   BatchFoodLogConfirmRequest,
   BatchFoodLogConfirmResponse,
+  MealImageAnalysisResponse,
+  MealScanConfirmRequest,
+  MealScanConfirmResponse,
+  RecalculateItemRequest,
+  RecalculateItemResponse,
 } from "../types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -49,10 +54,21 @@ async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Pr
         errorDetail = errJson.detail;
       } else if (Array.isArray(errJson.detail)) {
         errorDetail = errJson.detail
-          .map((e: any) => (typeof e === "string" ? e : (e.msg || JSON.stringify(e))))
+          .map((e: any) => {
+            if (typeof e === "string") return e;
+            if (e.msg) {
+              const field = Array.isArray(e.loc) ? e.loc.slice(-1)[0] : "";
+              return field ? `${field}: ${e.msg}` : e.msg;
+            }
+            return JSON.stringify(e);
+          })
           .join("; ");
+      } else if (typeof errJson.message === "string") {
+        errorDetail = errJson.message;
+      } else if (typeof errJson.error === "string") {
+        errorDetail = errJson.error;
       } else if (errJson.detail) {
-        errorDetail = JSON.stringify(errJson.detail);
+        errorDetail = typeof errJson.detail === "object" ? JSON.stringify(errJson.detail) : String(errJson.detail);
       } else {
         errorDetail = JSON.stringify(errJson);
       }
@@ -200,6 +216,44 @@ export const api = {
     if (userTz) params.append("tz", userTz);
     const queryStr = params.toString() ? `?${params.toString()}` : "";
     return fetchWithAuth<DashboardSummary>(`/api/dashboard${queryStr}`);
+  },
+
+  // AI Plate Scanner & Vision
+  analyzeMealImage: async (payload: {
+    image_base64: string;
+    mime_type?: string;
+    meal_type?: string;
+    allow_training_consent?: boolean;
+  }): Promise<MealImageAnalysisResponse> => {
+    return fetchWithAuth<MealImageAnalysisResponse>("/api/meals/analyze-image", {
+      method: "POST",
+      body: JSON.stringify({
+        image_base64: payload.image_base64,
+        mime_type: payload.mime_type || "image/jpeg",
+        meal_type: payload.meal_type || "lunch",
+        allow_training_consent: payload.allow_training_consent ?? false,
+      }),
+    });
+  },
+
+  recalculateItem: async (payload: RecalculateItemRequest): Promise<RecalculateItemResponse> => {
+    return fetchWithAuth<RecalculateItemResponse>("/api/meals/recalculate-item", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  confirmMealScan: async (payload: MealScanConfirmRequest): Promise<MealScanConfirmResponse> => {
+    return fetchWithAuth<MealScanConfirmResponse>("/api/meals/confirm-scan", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteScannedImage: async (imageId: string): Promise<{ message: string; image_id: string }> => {
+    return fetchWithAuth<{ message: string; image_id: string }>(`/api/meals/images/${encodeURIComponent(imageId)}`, {
+      method: "DELETE",
+    });
   },
 };
 

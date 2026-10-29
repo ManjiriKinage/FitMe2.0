@@ -9,6 +9,7 @@ import {
   User,
   LogOut,
   Plus,
+  Camera,
   Sparkles,
   Calendar,
   Layers
@@ -16,10 +17,11 @@ import {
 
 interface NavbarProps {
   onOpenAddFood?: () => void;
+  onOpenScanMeal?: () => void;
   userFullName?: string;
 }
 
-export default function Navbar({ onOpenAddFood, userFullName }: NavbarProps) {
+export default function Navbar({ onOpenAddFood, onOpenScanMeal, userFullName }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -75,16 +77,28 @@ export default function Navbar({ onOpenAddFood, userFullName }: NavbarProps) {
               );
             })}
 
-            {/* Quick Add Food Button */}
-            {onOpenAddFood && (
-              <button
-                onClick={onOpenAddFood}
-                className="mt-3 flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-sage/20 border border-sage/40 text-sage hover:bg-sage hover:text-charcoal text-xs font-bold transition shadow-sm"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Food</span>
-              </button>
-            )}
+            {/* Quick Actions */}
+            <div className="flex flex-col gap-2 mt-3">
+              {onOpenScanMeal && (
+                <button
+                  onClick={onOpenScanMeal}
+                  className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-charcoal-light border border-sage/40 text-sage hover:bg-sage hover:text-charcoal text-xs font-bold transition shadow-sm"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>Scan Meal</span>
+                </button>
+              )}
+
+              {onOpenAddFood && (
+                <button
+                  onClick={onOpenAddFood}
+                  className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-sage/20 border border-sage/40 text-sage hover:bg-sage hover:text-charcoal text-xs font-bold transition shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Food</span>
+                </button>
+              )}
+            </div>
           </nav>
         </div>
 
@@ -120,11 +134,22 @@ export default function Navbar({ onOpenAddFood, userFullName }: NavbarProps) {
           <span className="font-bold text-lg text-cream">FitMe</span>
         </Link>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {onOpenScanMeal && (
+            <button
+              onClick={onOpenScanMeal}
+              className="p-2 rounded-xl bg-charcoal-light border border-sage/40 text-sage text-xs font-bold flex items-center gap-1 shadow-soft"
+              title="Scan Meal"
+            >
+              <Camera className="w-4 h-4" />
+              <span>Scan</span>
+            </button>
+          )}
+
           {onOpenAddFood && (
             <button
               onClick={onOpenAddFood}
-              className="p-2 rounded-xl bg-sage text-charcoal text-xs font-bold flex items-center gap-1.5 shadow-soft"
+              className="p-2 rounded-xl bg-sage text-charcoal text-xs font-bold flex items-center gap-1 shadow-soft"
             >
               <Plus className="w-4 h-4" />
               <span>Food</span>

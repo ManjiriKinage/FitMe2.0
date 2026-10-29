@@ -462,17 +462,41 @@ async def confirm_and_save_meal(
         if item.profile_id:
             row_data["profile_id"] = item.profile_id
 
+        res = None
         try:
             res = client.table("food_logs").insert(row_data).execute()
         except Exception as e:
             logger.warning(f"Batch item insert failed with IDs, retrying without food_id/profile_id: {e}")
             row_data.pop("food_id", None)
             row_data.pop("profile_id", None)
-            res = client.table("food_logs").insert(row_data).execute()
+            try:
+                res = client.table("food_logs").insert(row_data).execute()
+            except Exception as e2:
+                logger.error(f"Failed to insert item {item.food_name}: {e2}")
+                continue
 
-        if res.data:
+        if res and res.data:
             saved_row = res.data[0]
-            saved_logs.append(FoodLogResponse.model_validate(saved_row))
+            try:
+                saved_logs.append(FoodLogResponse.model_validate(saved_row))
+            except Exception as val_err:
+                logger.warning(f"FoodLogResponse validation fallback for {saved_row.get('food_name')}: {val_err}")
+                saved_logs.append(FoodLogResponse(
+                    id=str(saved_row.get("id")),
+                    user_id=str(saved_row.get("user_id")),
+                    food_name=str(saved_row.get("food_name")),
+                    quantity=float(saved_row.get("quantity") or 1.0),
+                    unit=str(saved_row.get("unit") or "serving"),
+                    estimated_calories=float(saved_row.get("estimated_calories") or 0.0),
+                    protein_g=float(saved_row.get("protein_g") or 0.0),
+                    carbohydrates_g=float(saved_row.get("carbohydrates_g") or 0.0),
+                    fat_g=float(saved_row.get("fat_g") or 0.0),
+                    meal_type=saved_row.get("meal_type") or payload.meal_type or "lunch",
+                    logged_at=saved_row.get("logged_at") or now_iso,
+                    created_at=saved_row.get("created_at") or now_iso,
+                    food_id=str(saved_row.get("food_id")) if saved_row.get("food_id") else None,
+                    profile_id=str(saved_row.get("profile_id")) if saved_row.get("profile_id") else None,
+                ))
             tot_cals += item.estimated_calories
 
             # Record learning preference

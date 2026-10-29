@@ -11,6 +11,7 @@ import CalorieProgress from "@/components/CalorieProgress";
 import NutritionSummary from "@/components/NutritionSummary";
 import FoodLogList from "@/components/FoodLogList";
 import FoodLogForm from "@/components/FoodLogForm";
+import MealScannerModal from "@/components/MealScannerModal";
 import {
   Search,
   Bell,
@@ -18,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
+  Camera,
   Loader2,
   Droplets,
   AlertCircle
@@ -34,6 +36,9 @@ export default function DashboardHomePage() {
   // Modal State
   const [isAddFoodOpen, setIsAddFoodOpen] = useState(false);
   const [selectedMealForAdd, setSelectedMealForAdd] = useState<MealType>("breakfast");
+
+  const [isScanMealOpen, setIsScanMealOpen] = useState(false);
+  const [selectedMealForScan, setSelectedMealForScan] = useState<MealType>("lunch");
 
   // Date selection (defaults to today in local timezone YYYY-MM-DD)
   const getTodayStr = () => {
@@ -98,6 +103,11 @@ export default function DashboardHomePage() {
     setIsAddFoodOpen(true);
   };
 
+  const handleOpenScanMeal = (mealType: MealType = "lunch") => {
+    setSelectedMealForScan(mealType);
+    setIsScanMealOpen(true);
+  };
+
   const handleFoodSaved = async (newItem: FoodLogItem) => {
     // Reload dashboard to keep all calculations exact
     await loadData();
@@ -136,6 +146,7 @@ export default function DashboardHomePage() {
       {/* Sidebar Navigation */}
       <Navbar
         onOpenAddFood={() => handleOpenAddFood("breakfast")}
+        onOpenScanMeal={() => handleOpenScanMeal("lunch")}
         userFullName={profile?.full_name}
       />
 
@@ -204,6 +215,15 @@ export default function DashboardHomePage() {
               <Bell className="w-4 h-4 text-charcoal" />
             </button>
 
+            {/* AI Plate Scanner Action Button */}
+            <button
+              onClick={() => handleOpenScanMeal("lunch")}
+              className="px-3.5 py-2 rounded-2xl bg-charcoal text-cream font-bold text-xs shadow-soft hover:bg-charcoal-light transition flex items-center gap-1.5 border border-charcoal-light"
+            >
+              <Camera className="w-4 h-4 text-sage" />
+              <span>Scan Meal</span>
+            </button>
+
             {/* Prominent Add Food Action Button */}
             <button
               onClick={() => handleOpenAddFood("breakfast")}
@@ -245,6 +265,7 @@ export default function DashboardHomePage() {
                 meals={meals}
                 remainingCalories={remaining}
                 onOpenAddFood={handleOpenAddFood}
+                onOpenScanMeal={handleOpenScanMeal}
                 onDeleteFood={handleDeleteFood}
               />
             </div>
@@ -282,11 +303,24 @@ export default function DashboardHomePage() {
         </div>
       </main>
 
-      {/* Add Food Modal with AI estimation */}
+      {/* Add Food Modal with typed AI estimation */}
       {isAddFoodOpen && (
         <FoodLogForm
           initialMealType={selectedMealForAdd}
           onClose={() => setIsAddFoodOpen(false)}
+          onSuccess={handleFoodSaved}
+          onSwitchToScan={() => {
+            setIsAddFoodOpen(false);
+            handleOpenScanMeal(selectedMealForAdd);
+          }}
+        />
+      )}
+
+      {/* AI Plate Scanner Modal with Camera & Gallery */}
+      {isScanMealOpen && (
+        <MealScannerModal
+          initialMealType={selectedMealForScan}
+          onClose={() => setIsScanMealOpen(false)}
           onSuccess={handleFoodSaved}
         />
       )}

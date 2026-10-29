@@ -185,3 +185,103 @@ export interface GoalRecalculateResponse {
   calculation_details: CalorieCalculationResult;
   change_reasons: string[];
 }
+
+// AI Plate Scanner & Vision Types
+export interface DetectedFoodItem {
+  id: string;
+  name: string;
+  canonical_name?: string | null;
+  aliases?: string[];
+  category?: string;
+  preparation?: string | null;
+  estimated_weight_g: number;
+  serving_description?: string | null;
+  serving_quantity: number;
+  serving_unit: string;
+  confidence: "high" | "medium" | "low" | string;
+  assumptions?: string[];
+  clarification_needed?: string | null;
+  estimated_calories: number;
+  protein_g: number;
+  carbohydrates_g: number;
+  fat_g: number;
+  fiber_g?: number | null;
+  nutrition_source?: string;
+  food_id?: string | null;
+  profile_id?: string | null;
+}
+
+export interface MealImageAnalysisResponse {
+  image_id: string;
+  image_hash: string;
+  storage_path?: string | null;
+  signed_image_url?: string | null;
+  is_cached_analysis: boolean;
+  requires_confirmation: boolean;
+  uncertainty_notice: string;
+  foods: DetectedFoodItem[];
+  total_calories: number;
+  total_protein_g: number;
+  total_carbohydrates_g: number;
+  total_fat_g: number;
+  model_provider?: string;
+  model_version?: string;
+  analysis_version?: string;
+  processing_time_ms?: number | null;
+}
+
+export interface ConfirmedFoodItem {
+  food_name: string;
+  quantity: number;
+  unit: string;
+  estimated_calories: number;
+  protein_g: number;
+  carbohydrates_g: number;
+  fat_g: number;
+  preparation?: string | null;
+  estimated_weight_g?: number | null;
+  food_id?: string | null;
+  profile_id?: string | null;
+  was_edited?: boolean;
+  was_added?: boolean;
+}
+
+export interface MealScanConfirmRequest {
+  image_id: string;
+  meal_type: MealType;
+  items: ConfirmedFoodItem[];
+  deleted_items?: string[];
+  allow_training_consent?: boolean;
+}
+
+export interface MealScanConfirmResponse {
+  success: boolean;
+  saved_count: number;
+  total_calories: number;
+  saved_logs: FoodLogItem[];
+  feedback_saved: boolean;
+  message: string;
+}
+
+export interface RecalculateItemRequest {
+  food_name: string;
+  quantity: number;
+  unit: string;
+  preparation?: string | null;
+  weight_g?: number | null;
+}
+
+export interface RecalculateItemResponse {
+  food_name: string;
+  quantity: number;
+  unit: string;
+  weight_g: number;
+  estimated_calories: number;
+  protein_g: number;
+  carbohydrates_g: number;
+  fat_g: number;
+  fiber_g?: number | null;
+  nutrition_source: string;
+  food_id?: string | null;
+  profile_id?: string | null;
+}

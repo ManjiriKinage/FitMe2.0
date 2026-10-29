@@ -14,19 +14,22 @@ import {
   Flame,
   ArrowRight,
   Layers,
-  AlertTriangle
+  AlertTriangle,
+  Camera
 } from "lucide-react";
 
 interface FoodLogFormProps {
   initialMealType?: MealType;
   onClose: () => void;
   onSuccess: (newItem: FoodLogItem) => void;
+  onSwitchToScan?: () => void;
 }
 
 export default function FoodLogForm({
   initialMealType = "breakfast",
   onClose,
   onSuccess,
+  onSwitchToScan,
 }: FoodLogFormProps) {
   // Query Input State
   const [query, setQuery] = useState("");
@@ -94,27 +97,44 @@ export default function FoodLogForm({
     try {
       // If we have a multi-item compound meal breakdown, use the batch confirmation endpoint
       if (estimateData?.items && estimateData.items.length > 1) {
-        const batchRes = await api.confirmMeal({
-          meal_type: mealType,
-          logged_at: new Date().toISOString(),
-          items: estimateData.items.map((it) => ({
-            food_name: it.food_name,
-            quantity: it.quantity,
-            unit: it.unit,
-            estimated_calories: it.estimated_calories,
-            protein_g: it.protein_g,
-            carbohydrates_g: it.carbohydrates_g,
-            fat_g: it.fat_g,
+        try {
+          const batchRes = await api.confirmMeal({
             meal_type: mealType,
-            food_id: it.food_id || null,
-            profile_id: it.profile_id || null,
-          })),
-        });
+            logged_at: new Date().toISOString(),
+            items: estimateData.items.map((it) => ({
+              food_name: it.food_name,
+              quantity: it.quantity,
+              unit: it.unit,
+              estimated_calories: it.estimated_calories,
+              protein_g: it.protein_g,
+              carbohydrates_g: it.carbohydrates_g,
+              fat_g: it.fat_g,
+              meal_type: mealType,
+              food_id: it.food_id || null,
+              profile_id: it.profile_id || null,
+            })),
+          });
 
-        if (batchRes.saved_logs && batchRes.saved_logs.length > 0) {
-          onSuccess(batchRes.saved_logs[0]);
-        } else {
-          onSuccess({} as any);
+          if (batchRes.saved_logs && batchRes.saved_logs.length > 0) {
+            onSuccess(batchRes.saved_logs[0]);
+          } else {
+            onSuccess({} as any);
+          }
+        } catch (batchErr) {
+          console.warn("Batch confirmation failed, falling back to consolidated single entry:", batchErr);
+          // Fallback: Save as a consolidated meal entry so user data is never lost
+          const savedFallback = await api.createFoodLog({
+            food_name: editFoodName.trim(),
+            quantity: Number(editQuantity) || 1,
+            unit: editUnit.trim() || "meal",
+            estimated_calories: Number(editCalories) || 0,
+            protein_g: Number(editProtein) || 0,
+            carbohydrates_g: Number(editCarbs) || 0,
+            fat_g: Number(editFat) || 0,
+            meal_type: mealType,
+            logged_at: new Date().toISOString(),
+          });
+          onSuccess(savedFallback);
         }
       } else {
         // Single item save
@@ -134,7 +154,15 @@ export default function FoodLogForm({
 
       onClose();
     } catch (err: any) {
-      setSaveError(err.message || "Failed to save food entry. Please try again.");
+      const errorMsg =
+        typeof err?.message === "string"
+          ? err.message
+          : typeof err === "string"
+          ? err
+          : typeof err?.detail === "string"
+          ? err.detail
+          : "Failed to save food entry. Please try again.";
+      setSaveError(errorMsg);
     } finally {
       setIsSaving(false);
     }
@@ -157,12 +185,26 @@ export default function FoodLogForm({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-cream hover:bg-cream-soft flex items-center justify-center text-charcoal/60 hover:text-charcoal transition"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onSwitchToScan && (
+              <button
+                type="button"
+                onClick={onSwitchToScan}
+                className="px-2.5 py-1.5 rounded-xl bg-mint hover:bg-mint/70 text-sage text-xs font-bold transition flex items-center gap-1.5"
+                title="Switch to Camera Plate Scanner"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Scan Plate</span>
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-xl bg-cream hover:bg-cream-soft flex items-center justify-center text-charcoal/60 hover:text-charcoal transition"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Form Content */}

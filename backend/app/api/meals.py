@@ -132,6 +132,18 @@ async def confirm_scanned_meal(
                 saved_logs.append(FoodLogResponse.model_validate(saved_row))
                 total_cals += item.estimated_calories
         except Exception as e:
+            if "food_id" in row_data or "profile_id" in row_data:
+                row_data.pop("food_id", None)
+                row_data.pop("profile_id", None)
+                try:
+                    res = client.table("food_logs").insert(row_data).execute()
+                    if res.data and len(res.data) > 0:
+                        saved_row = res.data[0]
+                        saved_logs.append(FoodLogResponse.model_validate(saved_row))
+                        total_cals += item.estimated_calories
+                        continue
+                except Exception:
+                    pass
             # Fallback mock for testing environments where table insert might be mocked
             mock_row = dict(row_data)
             mock_row["id"] = f"log-{len(saved_logs)+1}"
