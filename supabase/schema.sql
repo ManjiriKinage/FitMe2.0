@@ -322,3 +322,178 @@ DROP POLICY IF EXISTS "Users can insert own food feedback" ON public.user_food_f
 CREATE POLICY "Users can insert own food feedback" ON public.user_food_feedback 
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+
+
+-- ==============================================================================
+-- FitMe 2.0: AI Plate Scanner, Supabase Storage & Supervised Feedback
+-- ==============================================================================
+
+-- 1. Private Supabase Storage Bucket: food_images
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'buckets') THEN
+        INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+        VALUES (
+            'food_images',
+            'food_images',
+            false, -- STRICTLY PRIVATE BUCKET
+            10485760, -- 10MB limit per image
+            ARRAY['image/jpeg', 'image/png', 'image/webp']
+        )
+        ON CONFLICT (id) DO UPDATE SET
+            public = false,
+            file_size_limit = 10485760,
+            allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp'];
+    END IF;
+END $$;
+
+-- 2. Table: public.food_images (Meal photo metadata)
+CREATE TABLE IF NOT EXISTS public.food_images (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    storage_path TEXT NOT NULL,
+    image_hash TEXT,
+    analysis_status TEXT NOT NULL DEFAULT 'completed',
+    detected_labels JSONB NOT NULL DEFAULT '[]'::jsonb,
+    detected_foods_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+    original_ai_prediction_json JSONB DEFAULT '[]'::jsonb,
+    label TEXT DEFAULT 'Meal Plate Scan',
+    image_source TEXT DEFAULT 'user_upload',
+    license_information TEXT,
+    review_status TEXT NOT NULL DEFAULT 'pending',
+    model_provider TEXT DEFAULT 'google',
+    model_version TEXT DEFAULT 'gemini-flash-lite-latest',
+    analysis_version TEXT DEFAULT 'v1',
+    user_confirmed BOOLEAN NOT NULL DEFAULT false,
+    allow_training_consent BOOLEAN NOT NULL DEFAULT false,
+    token_usage_json JSONB DEFAULT '{}'::jsonb,
+    correction_details_json JSONB DEFAULT '{}'::jsonb,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_food_images_user_id ON public.food_images(user_id);
+CREATE INDEX IF NOT EXISTS idx_food_images_user_hash ON public.food_images(user_id, image_hash);
+CREATE INDEX IF NOT EXISTS idx_food_images_status ON public.food_images(analysis_status);
+CREATE INDEX IF NOT EXISTS idx_food_images_created ON public.food_images(created_at DESC);
+
+-- 3. Link food_logs with food_image_id
+ALTER TABLE public.food_logs
+    ADD COLUMN IF NOT EXISTS food_image_id UUID REFERENCES public.food_images(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_food_logs_food_image_id ON public.food_logs(food_image_id);
+
+-- 4. Table: public.plate_scan_feedback
+CREATE TABLE IF NOT EXISTS public.plate_scan_feedback (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    food_image_id UUID REFERENCES public.food_images(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    original_prediction JSONB NOT NULL DEFAULT '[]'::jsonb,
+    user_confirmed_data JSONB NOT NULL DEFAULT '[]'::jsonb,
+    confirmed_food_labels JSONB DEFAULT '[]'::jsonb,
+    portion_corrections JSONB DEFAULT '[]'::jsonb,
+    preparation_corrections JSONB DEFAULT '[]'::jsonb,
+    label_corrections JSONB DEFAULT '{}'::jsonb,
+    delta_metrics JSONB DEFAULT '{}'::jsonb,
+    action TEXT NOT NULL DEFAULT 'confirmed',
+    allow_training_consent BOOLEAN NOT NULL DEFAULT false,
+    review_status TEXT NOT NULL DEFAULT 'pending',
+    dataset_split TEXT DEFAULT 'unassigned',
+    model_version TEXT DEFAULT 'gemini-flash-lite-latest',
+    pipeline_version TEXT DEFAULT 'v1',
+    reviewed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    reviewed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_plate_feedback_user ON public.plate_scan_feedback(user_id);
+CREATE INDEX IF NOT EXISTS idx_plate_feedback_img ON public.plate_scan_feedback(food_image_id);
+CREATE INDEX IF NOT EXISTS idx_plate_feedback_consent ON public.plate_scan_feedback(allow_training_consent);
+CREATE INDEX IF NOT EXISTS idx_plate_feedback_consent_status ON public.plate_scan_feedback(allow_training_consent, review_status);
+CREATE INDEX IF NOT EXISTS idx_plate_feedback_split ON public.plate_scan_feedback(dataset_split);
+
+-- 5. Row Level Security Policies
+ALTER TABLE public.food_images ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.plate_scan_feedback ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own food images" ON public.food_images;
+CREATE POLICY "Users can view own food images" ON public.food_images FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own food images" ON public.food_images;
+CREATE POLICY "Users can insert own food images" ON public.food_images FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own food images" ON public.food_images;
+CREATE POLICY "Users can update own food images" ON public.food_images FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own food images" ON public.food_images;
+CREATE POLICY "Users can delete own food images" ON public.food_images FOR DELETE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can view own plate scan feedback" ON public.plate_scan_feedback;
+CREATE POLICY "Users can view own plate scan feedback" ON public.plate_scan_feedback FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own plate scan feedback" ON public.plate_scan_feedback;
+CREATE POLICY "Users can insert own plate scan feedback" ON public.plate_scan_feedback FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own plate scan feedback" ON public.plate_scan_feedback;
+CREATE POLICY "Users can update own plate scan feedback" ON public.plate_scan_feedback FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own plate scan feedback" ON public.plate_scan_feedback;
+CREATE POLICY "Users can delete own plate scan feedback" ON public.plate_scan_feedback FOR DELETE USING (auth.uid() = user_id);
+
+-- Storage Objects RLS for private food_images bucket
+-- Note: RLS is already enabled by default on storage.objects in Supabase.
+-- DO NOT execute "ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;" because storage.objects is owned by supabase_storage_admin.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'objects') THEN
+        BEGIN
+            DROP POLICY IF EXISTS "Users can upload own meal photos" ON storage.objects;
+            CREATE POLICY "Users can upload own meal photos"
+                ON storage.objects FOR INSERT
+                TO authenticated
+                WITH CHECK (
+                    bucket_id = 'food_images' AND (
+                        (storage.foldername(name))[1] = 'user_' || auth.uid()::text OR
+                        (storage.foldername(name))[1] = auth.uid()::text
+                    )
+                );
+
+            DROP POLICY IF EXISTS "Users can view own meal photos" ON storage.objects;
+            CREATE POLICY "Users can view own meal photos"
+                ON storage.objects FOR SELECT
+                TO authenticated
+                USING (
+                    bucket_id = 'food_images' AND (
+                        (storage.foldername(name))[1] = 'user_' || auth.uid()::text OR
+                        (storage.foldername(name))[1] = auth.uid()::text
+                    )
+                );
+
+            DROP POLICY IF EXISTS "Users can update own meal photos" ON storage.objects;
+            CREATE POLICY "Users can update own meal photos"
+                ON storage.objects FOR UPDATE
+                TO authenticated
+                USING (
+                    bucket_id = 'food_images' AND (
+                        (storage.foldername(name))[1] = 'user_' || auth.uid()::text OR
+                        (storage.foldername(name))[1] = auth.uid()::text
+                    )
+                );
+
+            DROP POLICY IF EXISTS "Users can delete own meal photos" ON storage.objects;
+            CREATE POLICY "Users can delete own meal photos"
+                ON storage.objects FOR DELETE
+                TO authenticated
+                USING (
+                    bucket_id = 'food_images' AND (
+                        (storage.foldername(name))[1] = 'user_' || auth.uid()::text OR
+                        (storage.foldername(name))[1] = auth.uid()::text
+                    )
+                );
+        EXCEPTION
+            WHEN OTHERS THEN
+                RAISE NOTICE 'Skipping direct storage.objects policy modification: %', SQLERRM;
+        END;
+    END IF;
+END $$;

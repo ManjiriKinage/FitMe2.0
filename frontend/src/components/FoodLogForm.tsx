@@ -102,13 +102,13 @@ export default function FoodLogForm({
             meal_type: mealType,
             logged_at: new Date().toISOString(),
             items: estimateData.items.map((it) => ({
-              food_name: it.food_name,
-              quantity: it.quantity,
-              unit: it.unit,
-              estimated_calories: it.estimated_calories,
-              protein_g: it.protein_g,
-              carbohydrates_g: it.carbohydrates_g,
-              fat_g: it.fat_g,
+              food_name: (it.food_name || "Food Item").trim(),
+              quantity: Number(it.quantity) > 0 ? Number(it.quantity) : 1,
+              unit: (it.unit || "serving").trim(),
+              estimated_calories: Number(it.estimated_calories) >= 0 ? Number(it.estimated_calories) : 0,
+              protein_g: Number(it.protein_g) >= 0 ? Number(it.protein_g) : 0,
+              carbohydrates_g: Number(it.carbohydrates_g) >= 0 ? Number(it.carbohydrates_g) : 0,
+              fat_g: Number(it.fat_g) >= 0 ? Number(it.fat_g) : 0,
               meal_type: mealType,
               food_id: it.food_id || null,
               profile_id: it.profile_id || null,
@@ -125,12 +125,12 @@ export default function FoodLogForm({
           // Fallback: Save as a consolidated meal entry so user data is never lost
           const savedFallback = await api.createFoodLog({
             food_name: editFoodName.trim(),
-            quantity: Number(editQuantity) || 1,
+            quantity: Number(editQuantity) > 0 ? Number(editQuantity) : 1,
             unit: editUnit.trim() || "meal",
-            estimated_calories: Number(editCalories) || 0,
-            protein_g: Number(editProtein) || 0,
-            carbohydrates_g: Number(editCarbs) || 0,
-            fat_g: Number(editFat) || 0,
+            estimated_calories: Number(editCalories) >= 0 ? Number(editCalories) : 0,
+            protein_g: Number(editProtein) >= 0 ? Number(editProtein) : 0,
+            carbohydrates_g: Number(editCarbs) >= 0 ? Number(editCarbs) : 0,
+            fat_g: Number(editFat) >= 0 ? Number(editFat) : 0,
             meal_type: mealType,
             logged_at: new Date().toISOString(),
           });
@@ -140,12 +140,12 @@ export default function FoodLogForm({
         // Single item save
         const savedItem = await api.createFoodLog({
           food_name: editFoodName.trim(),
-          quantity: Number(editQuantity) || 1,
+          quantity: Number(editQuantity) > 0 ? Number(editQuantity) : 1,
           unit: editUnit.trim() || "serving",
-          estimated_calories: Number(editCalories) || 0,
-          protein_g: Number(editProtein) || 0,
-          carbohydrates_g: Number(editCarbs) || 0,
-          fat_g: Number(editFat) || 0,
+          estimated_calories: Number(editCalories) >= 0 ? Number(editCalories) : 0,
+          protein_g: Number(editProtein) >= 0 ? Number(editProtein) : 0,
+          carbohydrates_g: Number(editCarbs) >= 0 ? Number(editCarbs) : 0,
+          fat_g: Number(editFat) >= 0 ? Number(editFat) : 0,
           meal_type: mealType,
           logged_at: new Date().toISOString(),
         });
@@ -154,14 +154,16 @@ export default function FoodLogForm({
 
       onClose();
     } catch (err: any) {
-      const errorMsg =
-        typeof err?.message === "string"
-          ? err.message
-          : typeof err === "string"
-          ? err
-          : typeof err?.detail === "string"
-          ? err.detail
-          : "Failed to save food entry. Please try again.";
+      let errorMsg = "Failed to save food entry. Please try again.";
+      if (typeof err?.message === "string" && !err.message.includes("[object Object]")) {
+        errorMsg = err.message;
+      } else if (typeof err?.detail === "string") {
+        errorMsg = err.detail;
+      } else if (Array.isArray(err?.detail)) {
+        errorMsg = err.detail.map((e: any) => e.msg || e.message || JSON.stringify(e)).join("; ");
+      } else if (typeof err === "string") {
+        errorMsg = err;
+      }
       setSaveError(errorMsg);
     } finally {
       setIsSaving(false);

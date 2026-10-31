@@ -7,7 +7,8 @@ from app.api import (
     profile_router,
     goals_router,
     food_router,
-    dashboard_router
+    dashboard_router,
+    meals_router
 )
 
 app = FastAPI(
@@ -57,6 +58,7 @@ app.include_router(profile_router, prefix="/api")
 app.include_router(goals_router, prefix="/api")
 app.include_router(food_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
+app.include_router(meals_router, prefix="/api")
 
 @app.get("/health", tags=["System"])
 async def health_check():

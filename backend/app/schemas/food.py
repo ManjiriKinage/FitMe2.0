@@ -50,13 +50,14 @@ class FoodLogCreate(BaseModel):
     quantity: float = Field(..., gt=0)
     unit: str = Field(..., min_length=1, max_length=50)
     estimated_calories: float = Field(..., ge=0)
-    protein_g: float = Field(0.0, ge=0)
-    carbohydrates_g: float = Field(0.0, ge=0)
-    fat_g: float = Field(0.0, ge=0)
+    protein_g: Optional[float] = Field(0.0, ge=0)
+    carbohydrates_g: Optional[float] = Field(0.0, ge=0)
+    fat_g: Optional[float] = Field(0.0, ge=0)
     meal_type: Optional[MealType] = "lunch"
     logged_at: Optional[datetime] = None
     food_id: Optional[str] = None
     profile_id: Optional[str] = None
+    food_image_id: Optional[str] = None
 
 class FoodLogUpdate(BaseModel):
     food_name: Optional[str] = Field(None, min_length=1, max_length=150)
@@ -70,6 +71,7 @@ class FoodLogUpdate(BaseModel):
     logged_at: Optional[datetime] = None
     food_id: Optional[str] = None
     profile_id: Optional[str] = None
+    food_image_id: Optional[str] = None
 
 class FoodLogResponse(BaseModel):
     id: str
@@ -78,14 +80,15 @@ class FoodLogResponse(BaseModel):
     quantity: float
     unit: str
     estimated_calories: float
-    protein_g: float
-    carbohydrates_g: float
-    fat_g: float
+    protein_g: Optional[float] = 0.0
+    carbohydrates_g: Optional[float] = 0.0
+    fat_g: Optional[float] = 0.0
     meal_type: MealType
     logged_at: datetime
     created_at: Optional[datetime] = None
     food_id: Optional[str] = None
     profile_id: Optional[str] = None
+    food_image_id: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -174,3 +177,4 @@ class BatchFoodLogResponse(BaseModel):
     total_calories: float
     message: str
     saved_logs: List[FoodLogResponse] = Field(default_factory=list)
+    daily_summary: Optional[DashboardSummaryResponse] = None

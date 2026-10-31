@@ -1,5 +1,7 @@
 """Nutrition aggregation service for daily calories and macronutrient totals."""
-from datetime import datetime, date
+import logging
+import zoneinfo
+from datetime import datetime, date, timezone
 from typing import List, Dict, Any, Optional
 from app.schemas.food import (
     FoodLogResponse,
@@ -7,6 +9,9 @@ from app.schemas.food import (
     DailyMacroTotals,
     MealType
 )
+from app.services.calorie_calculator import calculate_macro_split
+
+logger = logging.getLogger(__name__)
 
 def aggregate_daily_dashboard(
     daily_calorie_target: int,
@@ -95,3 +100,84 @@ def aggregate_daily_dashboard(
         meals=meals,
         timezone="UTC"
     )
+
+
+def fetch_and_calculate_daily_dashboard(
+    client: Any,
+    user_id: str,
+    target_date: Optional[str] = None,
+    user_tz_name: Optional[str] = None
+) -> Optional[DashboardSummaryResponse]:
+    """
+    Fetches food logs for the user's local day and computes the updated dashboard summary.
+    Handles timezone boundaries, daily calorie targets, and macro split calculations.
+    Ensures users can access only their own food logs.
+    """
+    if not client or not user_id:
+        return None
+
+    try:
+        # 1. Fetch user profile for daily calorie goal and configured timezone
+        p_res = client.table("profiles").select("*").eq("id", user_id).execute()
+        if not p_res.data or len(p_res.data) == 0:
+            target_cals = 2000
+            fitness_goal = "maintain_weight"
+            current_weight = 70.0
+            tz_str = user_tz_name or "UTC"
+        else:
+            profile = p_res.data[0]
+            target_cals = int(profile.get("daily_calorie_target", 2000))
+            fitness_goal = profile.get("fitness_goal", "maintain_weight")
+            current_weight = float(profile.get("current_weight_kg", 70.0))
+            tz_str = user_tz_name or profile.get("timezone") or "UTC"
+
+        # Validate timezone
+        try:
+            user_tz = zoneinfo.ZoneInfo(tz_str)
+        except Exception:
+            user_tz = timezone.utc
+            tz_str = "UTC"
+
+        # Determine target local date
+        if not target_date:
+            date_str = datetime.now(user_tz).strftime("%Y-%m-%d")
+        else:
+            date_str = target_date
+
+        # Compute exact UTC boundaries for the local day [00:00:00 to 23:59:59.999999]
+        try:
+            start_local = datetime.strptime(f"{date_str} 00:00:00", "%Y-%m-%d %H:%M:%S").replace(tzinfo=user_tz)
+            end_local = datetime.strptime(f"{date_str} 23:59:59.999999", "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=user_tz)
+            start_ts = start_local.astimezone(timezone.utc).isoformat()
+            end_ts = end_local.astimezone(timezone.utc).isoformat()
+        except Exception:
+            start_ts = f"{date_str}T00:00:00Z"
+            end_ts = f"{date_str}T23:59:59Z"
+
+        # 2. Fetch food logs strictly for this user within local day boundaries
+        logs_res = (
+            client.table("food_logs")
+            .select("*")
+            .eq("user_id", user_id)
+            .gte("logged_at", start_ts)
+            .lte("logged_at", end_ts)
+            .order("logged_at", desc=False)
+            .execute()
+        )
+        logs = logs_res.data or []
+
+        # 3. Macro targets
+        macro_targets = calculate_macro_split(target_cals, fitness_goal, current_weight)
+
+        # 4. Aggregate dashboard
+        summary = aggregate_daily_dashboard(
+            daily_calorie_target=target_cals,
+            food_logs=logs,
+            target_date=date_str,
+            macro_targets=macro_targets
+        )
+        summary.timezone = tz_str
+        return summary
+    except Exception as e:
+        logger.warning(f"Could not calculate updated daily dashboard for user {user_id}: {e}")
+        return None

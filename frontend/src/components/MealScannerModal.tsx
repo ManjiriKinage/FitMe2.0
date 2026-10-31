@@ -16,16 +16,18 @@ import {
   RefreshCw,
   Trash2,
   Plus,
+  Minus,
   Check,
   AlertCircle,
   Loader2,
   Sparkles,
   X,
-  Info,
   ShieldCheck,
   Flame,
-  ArrowRight,
   SlidersHorizontal,
+  HelpCircle,
+  ChefHat,
+  Scale,
 } from "lucide-react";
 
 interface MealScannerModalProps {
@@ -37,6 +39,9 @@ interface MealScannerModalProps {
 interface EditableItem {
   id: string;
   food_name: string;
+  canonical_name?: string | null;
+  aliases?: string[];
+  category?: string;
   quantity: number;
   unit: string;
   estimated_weight_g: number;
@@ -44,13 +49,37 @@ interface EditableItem {
   protein_g: number;
   carbohydrates_g: number;
   fat_g: number;
-  preparation?: string | null;
+  fiber_g?: number | null;
+  preparation: string;
   food_id?: string | null;
   profile_id?: string | null;
   confidence?: string;
+  assumptions?: string[];
+  uncertainty?: string | null;
+  clarification_needed?: string | null;
+  serving_description?: string | null;
   was_edited?: boolean;
   was_added?: boolean;
 }
+
+const PREPARATION_OPTIONS = [
+  { value: "cooked", label: "Cooked / Curry / Gravy" },
+  { value: "steamed", label: "Steamed (Rice / Idli)" },
+  { value: "roasted", label: "Roasted (Roti / Bhakri)" },
+  { value: "shallow_fried", label: "Shallow Fried (Paratha / Dosa)" },
+  { value: "deep_fried", label: "Deep Fried (Puri / Snack)" },
+  { value: "raw", label: "Raw / Fresh (Salad / Fruit)" },
+];
+
+const QUICK_ADD_PRESETS = [
+  { name: "Chapati", qty: 1, unit: "piece", grams: 35, prep: "cooked" },
+  { name: "Bajra Bhakri", qty: 1, unit: "piece", grams: 60, prep: "roasted" },
+  { name: "Cooked White Rice", qty: 1, unit: "cup", grams: 150, prep: "steamed" },
+  { name: "Yellow Dal", qty: 1, unit: "bowl", grams: 150, prep: "cooked" },
+  { name: "Mixed Sabzi", qty: 1, unit: "bowl", grams: 150, prep: "cooked" },
+  { name: "Curd / Dahi", qty: 1, unit: "bowl", grams: 150, prep: "raw" },
+  { name: "Mixed Salad", qty: 1, unit: "bowl", grams: 100, prep: "raw" },
+];
 
 export default function MealScannerModal({
   initialMealType = "lunch",
@@ -78,6 +107,7 @@ export default function MealScannerModal({
   const [allowTrainingConsent, setAllowTrainingConsent] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [recalculatingId, setRecalculatingId] = useState<string | null>(null);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   // Hidden file inputs
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -192,7 +222,7 @@ export default function MealScannerModal({
 
     try {
       const timer1 = setTimeout(() => {
-        setAnalysisProgress("Detecting Indian dishes & estimating visual portions...");
+        setAnalysisProgress("Detecting dishes, estimating visual portions & matching nutrition...");
       }, 900);
 
       const res = await api.analyzeMealImage({
@@ -209,6 +239,9 @@ export default function MealScannerModal({
       const initialItems: EditableItem[] = (res.foods || []).map((f, idx) => ({
         id: f.id || `item-${idx}-${Date.now()}`,
         food_name: f.name,
+        canonical_name: f.canonical_name || f.name,
+        aliases: f.aliases || [],
+        category: f.category || "general",
         quantity: f.serving_quantity || 1.0,
         unit: f.serving_unit || "serving",
         estimated_weight_g: f.estimated_weight_g || 100,
@@ -216,10 +249,15 @@ export default function MealScannerModal({
         protein_g: f.protein_g || 0,
         carbohydrates_g: f.carbohydrates_g || 0,
         fat_g: f.fat_g || 0,
-        preparation: f.preparation || "standard",
+        fiber_g: f.fiber_g || null,
+        preparation: f.preparation || "cooked",
         food_id: f.food_id || null,
         profile_id: f.profile_id || null,
         confidence: f.confidence || "medium",
+        assumptions: f.assumptions || [],
+        uncertainty: f.uncertainty || null,
+        clarification_needed: f.clarification_needed || null,
+        serving_description: f.serving_description || null,
         was_edited: false,
         was_added: false,
       }));
@@ -233,23 +271,62 @@ export default function MealScannerModal({
     }
   };
 
-  // 3. Portion Recalculation without calling AI vision
+  // 3. Portion & Field Modification with Zero-AI Local Recalculation
   const handleItemFieldChange = async (
     id: string,
-    field: "food_name" | "quantity" | "unit" | "estimated_weight_g",
+    field: "food_name" | "quantity" | "unit" | "estimated_weight_g" | "preparation",
     value: string | number
   ) => {
+    const targetItem = items.find((it) => it.id === id);
+    if (!targetItem) return;
+
+    let updatedQuantity = targetItem.quantity;
+    let updatedWeight = targetItem.estimated_weight_g;
+    let updatedCalories = targetItem.estimated_calories;
+    let updatedProtein = targetItem.protein_g;
+    let updatedCarbs = targetItem.carbohydrates_g;
+    let updatedFat = targetItem.fat_g;
+
+    // Instant local proportional calculation for ultra-responsive UI
+    if (field === "quantity") {
+      const newQty = Math.max(0.1, Number(value) || 0.1);
+      const ratio = targetItem.quantity > 0 ? newQty / targetItem.quantity : 1;
+      updatedQuantity = newQty;
+      updatedWeight = Math.round(targetItem.estimated_weight_g * ratio);
+      updatedCalories = roundOne(targetItem.estimated_calories * ratio);
+      updatedProtein = roundOne(targetItem.protein_g * ratio);
+      updatedCarbs = roundOne(targetItem.carbohydrates_g * ratio);
+      updatedFat = roundOne(targetItem.fat_g * ratio);
+    } else if (field === "estimated_weight_g") {
+      const newGrams = Math.max(1, Number(value) || 1);
+      const ratio = targetItem.estimated_weight_g > 0 ? newGrams / targetItem.estimated_weight_g : 1;
+      updatedWeight = newGrams;
+      updatedCalories = roundOne(targetItem.estimated_calories * ratio);
+      updatedProtein = roundOne(targetItem.protein_g * ratio);
+      updatedCarbs = roundOne(targetItem.carbohydrates_g * ratio);
+      updatedFat = roundOne(targetItem.fat_g * ratio);
+    }
+
     const updatedItems = items.map((it) => {
       if (it.id !== id) return it;
-      const copy = { ...it, [field]: value, was_edited: true };
-      return copy;
+      return {
+        ...it,
+        [field]: value,
+        quantity: updatedQuantity,
+        estimated_weight_g: updatedWeight,
+        estimated_calories: updatedCalories,
+        protein_g: updatedProtein,
+        carbohydrates_g: updatedCarbs,
+        fat_g: updatedFat,
+        was_edited: true,
+      };
     });
     setItems(updatedItems);
 
-    // Call instant local recalculation
     const currentItem = updatedItems.find((it) => it.id === id);
     if (!currentItem || currentItem.quantity <= 0) return;
 
+    // Authoritative deterministic recalculation without calling AI vision model
     setRecalculatingId(id);
     try {
       const recalculated = await api.recalculateItem({
@@ -270,16 +347,25 @@ export default function MealScannerModal({
                 carbohydrates_g: recalculated.carbohydrates_g,
                 fat_g: recalculated.fat_g,
                 estimated_weight_g: recalculated.weight_g,
+                food_id: recalculated.food_id || it.food_id,
+                profile_id: recalculated.profile_id || it.profile_id,
               }
             : it
         )
       );
     } catch (e) {
-      // Fallback ratio scaling
       console.warn("Local recalculation error:", e);
     } finally {
       setRecalculatingId(null);
     }
+  };
+
+  // Quick stepper increment / decrement
+  const handleStepQuantity = (id: string, delta: number) => {
+    const item = items.find((it) => it.id === id);
+    if (!item) return;
+    const newQty = Math.max(0.5, roundOne(item.quantity + delta));
+    handleItemFieldChange(id, "quantity", newQty);
   };
 
   // 4. Remove Item
@@ -291,19 +377,69 @@ export default function MealScannerModal({
     setItems((prev) => prev.filter((it) => it.id !== id));
   };
 
-  // 5. Add Missing Food Item
-  const handleAddMissingItem = () => {
+  // 5. Add Missing Food Item (Preset or Blank)
+  const handleAddPreset = async (preset: { name: string; qty: number; unit: string; grams: number; prep: string }) => {
+    const newItemId = `custom-${Date.now()}`;
+    const placeholderItem: EditableItem = {
+      id: newItemId,
+      food_name: preset.name,
+      quantity: preset.qty,
+      unit: preset.unit,
+      estimated_weight_g: preset.grams,
+      estimated_calories: Math.round(preset.grams * 2.0),
+      protein_g: roundOne(preset.grams * 0.08),
+      carbohydrates_g: roundOne(preset.grams * 0.35),
+      fat_g: roundOne(preset.grams * 0.04),
+      preparation: preset.prep,
+      confidence: "high",
+      was_edited: true,
+      was_added: true,
+    };
+
+    setItems((prev) => [...prev, placeholderItem]);
+
+    // Recalculate accurately against INDB profiles
+    try {
+      const rec = await api.recalculateItem({
+        food_name: preset.name,
+        quantity: preset.qty,
+        unit: preset.unit,
+        preparation: preset.prep,
+        weight_g: preset.grams,
+      });
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === newItemId
+            ? {
+                ...it,
+                estimated_calories: rec.estimated_calories,
+                protein_g: rec.protein_g,
+                carbohydrates_g: rec.carbohydrates_g,
+                fat_g: rec.fat_g,
+                food_id: rec.food_id,
+                profile_id: rec.profile_id,
+              }
+            : it
+        )
+      );
+    } catch {
+      // Keep heuristic
+    }
+  };
+
+  const handleAddCustomItem = () => {
     const newItem: EditableItem = {
       id: `custom-${Date.now()}`,
-      food_name: "Extra Chapati / Dish",
+      food_name: "Extra Dish",
       quantity: 1,
-      unit: "piece",
-      estimated_weight_g: 35,
-      estimated_calories: 85,
-      protein_g: 2.6,
-      carbohydrates_g: 17.5,
-      fat_g: 0.4,
-      confidence: "high",
+      unit: "serving",
+      estimated_weight_g: 100,
+      estimated_calories: 120,
+      protein_g: 4.0,
+      carbohydrates_g: 18.0,
+      fat_g: 3.5,
+      preparation: "cooked",
+      confidence: "medium",
       was_edited: true,
       was_added: true,
     };
@@ -316,7 +452,7 @@ export default function MealScannerModal({
   const totalCarbs = items.reduce((acc, it) => acc + (it.carbohydrates_g || 0), 0);
   const totalFat = items.reduce((acc, it) => acc + (it.fat_g || 0), 0);
 
-  // 7. Confirm & Log Meal to Supabase
+  // 7. Confirm & Log Meal to Supabase (Only when user explicitly clicks Confirm)
   const handleConfirmAndSave = async () => {
     if (!analysisResult || items.length === 0) {
       setAnalysisError("No food items to confirm. Please add at least one item.");
@@ -349,6 +485,7 @@ export default function MealScannerModal({
         items: confirmedPayload,
         deleted_items: deletedItemNames,
         allow_training_consent: allowTrainingConsent,
+        logged_at: new Date().toISOString(),
       });
 
       if (res.saved_logs && res.saved_logs.length > 0) {
@@ -366,7 +503,7 @@ export default function MealScannerModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-charcoal/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white w-full max-w-2xl rounded-3xl sm:rounded-4xl shadow-2xl border border-mint flex flex-col max-h-[90vh] overflow-hidden">
+      <div className="bg-white w-full max-w-2xl rounded-3xl sm:rounded-4xl shadow-2xl border border-mint flex flex-col max-h-[92vh] overflow-hidden">
         {/* Pinned Modal Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-charcoal/5 flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -377,11 +514,13 @@ export default function MealScannerModal({
               <div className="flex items-center gap-2">
                 <h3 className="font-extrabold text-lg text-charcoal tracking-tight">AI Plate Scanner</h3>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-sage/15 text-sage-700">
-                  Vision AI
+                  {stage === "review" ? "Review & Confirm" : "Vision AI"}
                 </span>
               </div>
               <p className="text-[11px] text-charcoal/60">
-                Snap or upload your meal for instant multi-dish recognition
+                {stage === "review"
+                  ? "Adjust dish names, preparation methods, and portion sizes before saving"
+                  : "Snap or upload your meal for instant multi-dish recognition"}
               </p>
             </div>
           </div>
@@ -407,7 +546,7 @@ export default function MealScannerModal({
                   key={type}
                   type="button"
                   onClick={() => setMealType(type)}
-                  disabled={stage === "analyzing"}
+                  disabled={stage === "analyzing" || isSaving}
                   className={`py-1.5 px-2.5 rounded-xl text-xs font-bold capitalize transition border ${
                     mealType === type
                       ? "bg-charcoal text-cream border-charcoal shadow-sm"
@@ -474,7 +613,7 @@ export default function MealScannerModal({
                       Capture or Upload Your Plate
                     </h4>
                     <p className="text-xs text-charcoal/60 mt-0.5 max-w-sm">
-                      Take a photo of your meal or select from gallery. AI will identify individual rotis, curries, dals, and rice.
+                      Take a photo of your meal or select from gallery. AI will identify individual flatbreads, curries, dals, and rice.
                     </p>
                   </div>
 
@@ -550,9 +689,9 @@ export default function MealScannerModal({
                   <div className="p-3 rounded-2xl bg-cream/70 border border-charcoal/5 flex items-start gap-2 text-[11px] text-charcoal/70">
                     <ShieldCheck className="w-4 h-4 text-sage flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-charcoal">Privacy & Learning Safeguard</p>
+                      <p className="font-semibold text-charcoal">Privacy & Review Safeguard</p>
                       <p className="text-[10px] leading-relaxed text-charcoal/60 mt-0.5">
-                        Your photo is analyzed securely. You can review, edit, or adjust all dish names and portions before anything is saved to your daily calorie log.
+                        Your meal photo is analyzed securely. You can review, edit preparation methods, and adjust portion sizes before anything is saved to your daily log.
                       </p>
                     </div>
                   </div>
@@ -603,61 +742,75 @@ export default function MealScannerModal({
           {/* ============================================================== */}
           {stage === "review" && (
             <div className="space-y-4 animate-fade-in">
-              {/* Top Banner Notice */}
-              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2">
-                <Info className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
-                <div>
-                  <strong className="block font-bold">Visual Estimation Notice:</strong>
-                  <span className="text-[11px] text-amber-800 leading-relaxed">
-                    {analysisResult?.uncertainty_notice ||
-                      "Visual estimates are approximate. Please verify dish quantities and grams before confirming."}
-                  </span>
-                </div>
-              </div>
-
-              {/* Duplicate Cache Hit Badge */}
-              {analysisResult?.is_cached_analysis && (
-                <div className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Exact photo match detected — reused instant cached analysis.</span>
-                </div>
-              )}
-
               {/* Detected Items List Header */}
               <div className="flex items-center justify-between pt-1">
                 <span className="text-xs font-black uppercase tracking-wider text-charcoal flex items-center gap-1.5">
                   <SlidersHorizontal className="w-3.5 h-3.5 text-sage" />
                   Detected Dishes ({items.length})
                 </span>
-                <button
-                  type="button"
-                  onClick={handleAddMissingItem}
-                  className="px-2.5 py-1 rounded-xl bg-cream hover:bg-mint text-charcoal text-[11px] font-bold border border-charcoal/10 hover:border-sage/40 transition flex items-center gap-1"
-                >
-                  <Plus className="w-3 h-3 text-sage" />
-                  <span>Add Missing Dish</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickAdd(!showQuickAdd)}
+                    className="px-2.5 py-1 rounded-xl bg-cream hover:bg-mint text-charcoal text-[11px] font-bold border border-charcoal/10 hover:border-sage/40 transition flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3 text-sage" />
+                    <span>Quick Add Dish</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddCustomItem}
+                    className="px-2.5 py-1 rounded-xl bg-white hover:bg-cream text-charcoal text-[11px] font-bold border border-charcoal/10 hover:border-sage/40 transition flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3 text-charcoal/70" />
+                    <span>Custom Dish</span>
+                  </button>
+                </div>
               </div>
 
+              {/* Quick Add Presets Row */}
+              {showQuickAdd && (
+                <div className="p-3 rounded-2xl bg-cream/70 border border-mint space-y-2 animate-fade-in">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-charcoal/60">
+                    Quick-add common Indian dish:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {QUICK_ADD_PRESETS.map((preset) => (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        onClick={() => handleAddPreset(preset)}
+                        className="py-1 px-2.5 rounded-xl bg-white hover:bg-sage hover:text-white text-charcoal text-[11px] font-semibold border border-charcoal/10 transition shadow-xs flex items-center gap-1"
+                      >
+                        <Plus className="w-2.5 h-2.5" />
+                        <span>{preset.name} ({preset.grams}g)</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Items Card List */}
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {items.map((it) => (
                   <div
                     key={it.id}
-                    className="p-3.5 rounded-2xl bg-cream/50 border border-charcoal/10 hover:border-sage/30 transition space-y-2.5"
+                    className="p-3.5 sm:p-4 rounded-3xl bg-cream/40 border border-charcoal/10 hover:border-sage/40 transition space-y-3 shadow-xs"
                   >
+                    {/* Top Row: Dish Name & Quick Badges & Delete */}
                     <div className="flex items-center justify-between gap-2">
-                      {/* Dish Name Input */}
-                      <input
-                        type="text"
-                        value={it.food_name}
-                        onChange={(e) => handleItemFieldChange(it.id, "food_name", e.target.value)}
-                        placeholder="Dish name"
-                        className="flex-1 font-bold text-xs text-charcoal bg-white/70 px-2.5 py-1.5 rounded-xl border border-charcoal/10 focus:border-sage outline-none"
-                      />
+                      <div className="flex-1 flex items-center gap-2 min-w-0">
+                        <input
+                          type="text"
+                          value={it.food_name}
+                          onChange={(e) => handleItemFieldChange(it.id, "food_name", e.target.value)}
+                          placeholder="Dish name"
+                          className="flex-1 font-bold text-sm text-charcoal bg-white px-3 py-1.5 rounded-xl border border-charcoal/10 focus:border-sage outline-none shadow-xs"
+                        />
+                      </div>
 
-                      {/* Calorie Pill */}
-                      <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-sage/15 text-sage-800 font-extrabold text-xs flex-shrink-0">
+                      {/* Calorie Badge */}
+                      <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-sage/15 text-sage-900 font-extrabold text-xs flex-shrink-0">
                         <Flame className="w-3.5 h-3.5 text-sage" />
                         <span>{Math.round(it.estimated_calories)} kcal</span>
                       </div>
@@ -667,101 +820,172 @@ export default function MealScannerModal({
                         type="button"
                         onClick={() => handleRemoveItem(it.id)}
                         title="Remove dish"
-                        className="w-7 h-7 rounded-xl hover:bg-red-50 text-charcoal/40 hover:text-red-600 flex items-center justify-center transition flex-shrink-0"
+                        className="w-8 h-8 rounded-xl hover:bg-red-50 text-charcoal/40 hover:text-red-600 flex items-center justify-center transition flex-shrink-0"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
 
-                    {/* Portion & Macros Controls */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-center">
+                    {/* Portion, Weight, Preparation, and Unit Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                      {/* 1. Quantity with Steppers */}
                       <div>
-                        <label className="block text-[9px] font-bold text-charcoal/50 uppercase mb-0.5">Quantity</label>
-                        <input
-                          type="number"
-                          step="0.5"
-                          min="0.1"
-                          value={it.quantity}
-                          onChange={(e) => handleItemFieldChange(it.id, "quantity", Number(e.target.value))}
-                          className="w-full text-center bg-white px-2 py-1 rounded-xl border border-charcoal/10 text-xs font-bold text-charcoal outline-none focus:border-sage"
-                        />
+                        <label className="block text-[9px] font-bold text-charcoal/60 uppercase mb-1">
+                          Quantity
+                        </label>
+                        <div className="flex items-center rounded-xl bg-white border border-charcoal/10 overflow-hidden shadow-xs focus-within:border-sage">
+                          <button
+                            type="button"
+                            onClick={() => handleStepQuantity(it.id, -0.5)}
+                            className="px-2 py-1.5 hover:bg-cream text-charcoal/70 transition"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0.1"
+                            value={it.quantity}
+                            onChange={(e) => handleItemFieldChange(it.id, "quantity", Number(e.target.value))}
+                            className="w-full text-center py-1 text-xs font-bold text-charcoal outline-none bg-transparent"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleStepQuantity(it.id, 0.5)}
+                            className="px-2 py-1.5 hover:bg-cream text-charcoal/70 transition"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
 
+                      {/* 2. Serving Unit */}
                       <div>
-                        <label className="block text-[9px] font-bold text-charcoal/50 uppercase mb-0.5">Serving Unit</label>
+                        <label className="block text-[9px] font-bold text-charcoal/60 uppercase mb-1">
+                          Serving Unit
+                        </label>
                         <input
                           type="text"
                           value={it.unit}
                           onChange={(e) => handleItemFieldChange(it.id, "unit", e.target.value)}
-                          placeholder="e.g. piece, bowl"
-                          className="w-full text-center bg-white px-2 py-1 rounded-xl border border-charcoal/10 text-xs font-bold text-charcoal outline-none focus:border-sage"
+                          placeholder="piece, bowl, cup"
+                          className="w-full bg-white px-2.5 py-1.5 rounded-xl border border-charcoal/10 text-xs font-bold text-charcoal outline-none focus:border-sage shadow-xs"
                         />
                       </div>
 
+                      {/* 3. Estimated Weight in Grams */}
                       <div>
-                        <label className="block text-[9px] font-bold text-charcoal/50 uppercase mb-0.5">Estimated Grams</label>
-                        <input
-                          type="number"
-                          step="5"
-                          min="1"
-                          value={it.estimated_weight_g}
-                          onChange={(e) => handleItemFieldChange(it.id, "estimated_weight_g", Number(e.target.value))}
-                          className="w-full text-center bg-white px-2 py-1 rounded-xl border border-charcoal/10 text-xs font-bold text-charcoal outline-none focus:border-sage"
-                        />
+                        <label className="block text-[9px] font-bold text-charcoal/60 uppercase mb-1 flex items-center justify-between">
+                          <span>Portion (g)</span>
+                          <span className="text-[8px] text-amber-800 lowercase">est.</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="5"
+                            min="1"
+                            value={it.estimated_weight_g}
+                            onChange={(e) => handleItemFieldChange(it.id, "estimated_weight_g", Number(e.target.value))}
+                            className="w-full bg-white pl-2.5 pr-6 py-1.5 rounded-xl border border-charcoal/10 text-xs font-bold text-charcoal outline-none focus:border-sage shadow-xs"
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-charcoal/40 font-semibold pointer-events-none">
+                            g
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="flex items-center justify-center gap-1 bg-white/60 rounded-xl border border-charcoal/5 p-1 text-[10px] text-charcoal/70">
-                        <span>P: <strong>{it.protein_g}g</strong></span>
-                        <span>•</span>
-                        <span>C: <strong>{it.carbohydrates_g}g</strong></span>
-                        <span>•</span>
-                        <span>F: <strong>{it.fat_g}g</strong></span>
+                      {/* 4. Preparation Method Selector */}
+                      <div>
+                        <label className="block text-[9px] font-bold text-charcoal/60 uppercase mb-1">
+                          Preparation Method
+                        </label>
+                        <select
+                          value={it.preparation || "cooked"}
+                          onChange={(e) => handleItemFieldChange(it.id, "preparation", e.target.value)}
+                          className="w-full bg-white px-2 py-1.5 rounded-xl border border-charcoal/10 text-xs font-semibold text-charcoal outline-none focus:border-sage shadow-xs"
+                        >
+                          {PREPARATION_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
 
-                    {recalculatingId === it.id && (
-                      <p className="text-[10px] text-sage font-semibold animate-pulse flex items-center gap-1">
-                        <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                        <span>Updating macros locally...</span>
-                      </p>
-                    )}
+                    {/* Macros Ribbon & Recalculation Spinner */}
+                    <div className="flex items-center justify-between pt-1 text-[11px] text-charcoal/70 bg-white/80 px-3 py-1.5 rounded-xl border border-charcoal/5">
+                      <div className="flex items-center gap-3">
+                        <span>Carbs: <strong className="text-charcoal font-bold">{roundOne(it.carbohydrates_g)}g</strong></span>
+                        <span>•</span>
+                        <span>Protein: <strong className="text-charcoal font-bold">{roundOne(it.protein_g)}g</strong></span>
+                        <span>•</span>
+                        <span>Fat: <strong className="text-charcoal font-bold">{roundOne(it.fat_g)}g</strong></span>
+                      </div>
+
+                      {recalculatingId === it.id && (
+                        <span className="text-[10px] text-sage font-bold flex items-center gap-1 animate-pulse">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          <span>Updating nutrition...</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
 
                 {items.length === 0 && (
                   <div className="p-8 text-center rounded-2xl bg-cream/40 border border-dashed border-charcoal/15 text-charcoal/60 text-xs">
-                    All items removed. Click <strong>Add Missing Dish</strong> to log your plate manually.
+                    All items removed. Use <strong>Quick Add Dish</strong> or <strong>Custom Dish</strong> to build your meal.
                   </div>
                 )}
               </div>
 
               {/* Dynamic Macro Summary Bar */}
-              <div className="p-3.5 rounded-2xl bg-charcoal text-cream flex items-center justify-between shadow-soft">
+              <div className="p-4 rounded-3xl bg-charcoal text-cream flex items-center justify-between shadow-soft">
                 <div>
                   <span className="text-[10px] font-bold text-sage uppercase tracking-wider block">
-                    Total Estimated Nutrition
+                    Total Meal Nutrition (Unconfirmed)
                   </span>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-xl font-black text-cream">{Math.round(totalCalories)}</span>
+                  <div className="flex items-baseline gap-1.5 mt-0.5">
+                    <span className="text-2xl font-black text-cream">{Math.round(totalCalories)}</span>
                     <span className="text-xs text-cream/70 font-semibold">kcal</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 text-right text-xs">
+                <div className="flex items-center gap-4 text-right">
                   <div>
-                    <span className="text-[9px] text-cream/50 block font-semibold">Carbs</span>
-                    <strong className="text-cream text-xs">{roundOne(totalCarbs)}g</strong>
+                    <span className="text-[9px] text-cream/50 block font-semibold uppercase">Carbs</span>
+                    <strong className="text-cream text-sm">{roundOne(totalCarbs)}g</strong>
                   </div>
                   <div>
-                    <span className="text-[9px] text-cream/50 block font-semibold">Protein</span>
-                    <strong className="text-cream text-xs">{roundOne(totalProtein)}g</strong>
+                    <span className="text-[9px] text-cream/50 block font-semibold uppercase">Protein</span>
+                    <strong className="text-cream text-sm">{roundOne(totalProtein)}g</strong>
                   </div>
                   <div>
-                    <span className="text-[9px] text-cream/50 block font-semibold">Fat</span>
-                    <strong className="text-cream text-xs">{roundOne(totalFat)}g</strong>
+                    <span className="text-[9px] text-cream/50 block font-semibold uppercase">Fat</span>
+                    <strong className="text-cream text-sm">{roundOne(totalFat)}g</strong>
                   </div>
                 </div>
               </div>
+
+              {/* Explicit Model Improvement Consent */}
+              <div className="pt-1">
+                <label className="flex items-start gap-2.5 text-[11px] text-charcoal/80 cursor-pointer bg-cream/70 p-2.5 rounded-xl border border-charcoal/10 hover:border-sage/40 transition">
+                  <input
+                    type="checkbox"
+                    checked={allowTrainingConsent}
+                    onChange={(e) => setAllowTrainingConsent(e.target.checked)}
+                    className="mt-0.5 rounded text-sage focus:ring-sage"
+                  />
+                  <span>
+                    <strong>Model Improvement Consent:</strong> Allow this photo and my verified corrections to be included in FitMe's periodic model fine-tuning dataset. (Uncheck to keep photo strictly private).
+                  </span>
+                </label>
+              </div>
+
+              <p className="text-[10px] text-charcoal/50 text-center italic">
+                Entries are only added to your daily calorie budget when you click <strong>Confirm & Save Meal</strong> below.
+              </p>
             </div>
           )}
         </div>
@@ -795,7 +1019,7 @@ export default function MealScannerModal({
                 ) : (
                   <>
                     <span>Confirm & Save Meal ({Math.round(totalCalories)} kcal)</span>
-                    <Check className="w-3.5 h-3.5 text-sage" />
+                    <Check className="w-4 h-4 text-sage" />
                   </>
                 )}
               </button>
@@ -840,4 +1064,3 @@ export default function MealScannerModal({
 function roundOne(val: number): number {
   return Math.round(val * 10) / 10;
 }
-

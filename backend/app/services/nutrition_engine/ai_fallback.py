@@ -89,7 +89,7 @@ async def interpret_with_ai(food_term: str, quantity: float, unit: str) -> ItemN
     Calls Gemini API with bounded timeout, strict JSON validation, and automatic
     heuristic fallback if the remote AI call times out or fails.
     """
-    if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY.startswith("your-"):
+    if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY.startswith("your-") or settings.ENVIRONMENT == "test":
         return clinical_heuristic_estimate(food_term, quantity, unit)
 
     weight_g, _ = resolve_serving_weight(food_term, quantity, unit)

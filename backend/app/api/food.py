@@ -1,4 +1,5 @@
 """Food estimation and logging API endpoints."""
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
@@ -21,11 +22,22 @@ from app.schemas.food import (
     UserPreferenceUpdate
 )
 from app.services.nutrition_engine import nutrition_engine
+from app.services.nutrition_service import fetch_and_calculate_daily_dashboard
 from app.services.user_learning import UserPreferenceLearningEngine
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/food", tags=["Food & AI Estimation"])
+
+def _is_valid_uuid(val: Any) -> bool:
+    """Verifies string is a valid UUID to prevent PostgreSQL type errors."""
+    if not val or not isinstance(val, str):
+        return False
+    try:
+        uuid.UUID(val)
+        return True
+    except (ValueError, AttributeError, TypeError):
+        return False
 
 @router.post("/estimate", response_model=AIEstimateResponse)
 async def estimate_food(
@@ -432,17 +444,20 @@ async def confirm_and_save_meal(
 
     for item in payload.items:
         recent_cutoff = datetime.fromtimestamp(datetime.now(timezone.utc).timestamp() - 5.0, timezone.utc).isoformat()
-        recent = (
-            client.table("food_logs")
-            .select("id")
-            .eq("user_id", user["id"])
-            .eq("food_name", item.food_name)
-            .gte("created_at", recent_cutoff)
-            .execute()
-        )
-        if recent.data and len(recent.data) > 0:
-            logger.info(f"Ignored duplicate submission for {item.food_name}")
-            continue
+        try:
+            recent = (
+                client.table("food_logs")
+                .select("id")
+                .eq("user_id", user["id"])
+                .eq("food_name", item.food_name)
+                .gte("created_at", recent_cutoff)
+                .execute()
+            )
+            if recent.data and len(recent.data) > 0:
+                logger.info(f"Ignored duplicate submission for {item.food_name}")
+                continue
+        except Exception as dup_err:
+            logger.debug(f"Duplicate check skipped: {dup_err}")
 
         row_data = {
             "user_id": user["id"],
@@ -457,10 +472,12 @@ async def confirm_and_save_meal(
             "logged_at": log_time,
             "created_at": now_iso
         }
-        if item.food_id:
+        if item.food_id and _is_valid_uuid(item.food_id):
             row_data["food_id"] = item.food_id
-        if item.profile_id:
+        if item.profile_id and _is_valid_uuid(item.profile_id):
             row_data["profile_id"] = item.profile_id
+        if item.food_image_id and _is_valid_uuid(item.food_image_id):
+            row_data["food_image_id"] = item.food_image_id
 
         res = None
         try:
@@ -472,8 +489,12 @@ async def confirm_and_save_meal(
             try:
                 res = client.table("food_logs").insert(row_data).execute()
             except Exception as e2:
-                logger.error(f"Failed to insert item {item.food_name}: {e2}")
-                continue
+                row_data.pop("food_image_id", None)
+                try:
+                    res = client.table("food_logs").insert(row_data).execute()
+                except Exception as e3:
+                    logger.error(f"Failed to insert item {item.food_name}: {e3}")
+                    continue
 
         if res and res.data:
             saved_row = res.data[0]
@@ -496,6 +517,7 @@ async def confirm_and_save_meal(
                     created_at=saved_row.get("created_at") or now_iso,
                     food_id=str(saved_row.get("food_id")) if saved_row.get("food_id") else None,
                     profile_id=str(saved_row.get("profile_id")) if saved_row.get("profile_id") else None,
+                    food_image_id=str(saved_row.get("food_image_id")) if saved_row.get("food_image_id") else None,
                 ))
             tot_cals += item.estimated_calories
 
@@ -518,12 +540,20 @@ async def confirm_and_save_meal(
             detail="Failed to save food log entries. Please check the food details and try again."
         )
 
+    # Compute updated daily dashboard totals
+    daily_summary = fetch_and_calculate_daily_dashboard(
+        client=client,
+        user_id=user["id"],
+        target_date=log_time[:10] if len(log_time) >= 10 else None
+    )
+
     return BatchFoodLogResponse(
         success=True,
         saved_count=len(saved_logs),
         total_calories=round(tot_cals, 1),
         message=f"Successfully confirmed and logged {len(saved_logs)} food items.",
-        saved_logs=saved_logs
+        saved_logs=saved_logs,
+        daily_summary=daily_summary
     )
 
 @router.post("/feedback")

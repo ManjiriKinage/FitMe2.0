@@ -224,6 +224,7 @@ export const api = {
     mime_type?: string;
     meal_type?: string;
     allow_training_consent?: boolean;
+    force_refresh?: boolean;
   }): Promise<MealImageAnalysisResponse> => {
     return fetchWithAuth<MealImageAnalysisResponse>("/api/meals/analyze-image", {
       method: "POST",
@@ -232,6 +233,7 @@ export const api = {
         mime_type: payload.mime_type || "image/jpeg",
         meal_type: payload.meal_type || "lunch",
         allow_training_consent: payload.allow_training_consent ?? false,
+        force_refresh: payload.force_refresh ?? false,
       }),
     });
   },

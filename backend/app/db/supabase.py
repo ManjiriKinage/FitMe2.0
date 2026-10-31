@@ -1,6 +1,7 @@
 """Supabase client and authentication dependencies."""
 from fastapi import Header, HTTPException, status, Depends
 from supabase import create_client, Client
+from supabase.client import ClientOptions
 from typing import Optional, Dict, Any
 from app.core.config import settings
 
@@ -29,7 +30,7 @@ def get_supabase_admin_client(user: Optional[Dict[str, Any]] = None) -> Optional
     """
     Returns an admin client if a real service_role key is present.
     If only the anon key is available, returns a client authenticated with the user's JWT
-    so that PostgreSQL Row Level Security (RLS) policies pass.
+    so that PostgreSQL Row Level Security (RLS) policies and Supabase Storage RLS pass.
     """
     global _supabase_admin
     if settings.SUPABASE_SERVICE_ROLE_KEY and is_service_role_key(settings.SUPABASE_SERVICE_ROLE_KEY):
@@ -40,7 +41,8 @@ def get_supabase_admin_client(user: Optional[Dict[str, Any]] = None) -> Optional
     # Fallback to anon client scoped with user's JWT token
     token = user.get("token") if isinstance(user, dict) else None
     if settings.SUPABASE_URL and settings.SUPABASE_ANON_KEY:
-        client = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+        options = ClientOptions(headers={"Authorization": f"Bearer {token}"}) if token else ClientOptions()
+        client = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY, options=options)
         if token:
             client.postgrest.auth(token)
         return client

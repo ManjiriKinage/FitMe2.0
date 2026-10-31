@@ -88,7 +88,7 @@ class NutritionEngine:
                             "reported_fat_g_per_100g": float(primary_profile["fat_g"]) if primary_profile.get("fat_g") is not None else None,
                             "reported_fiber_g_per_100g": float(primary_profile["fiber_g"]) if primary_profile.get("fiber_g") is not None else None,
                             "validation_status": str(primary_profile.get("validation_status", "verified")).strip(),
-                            "source_type": "indb_verified_recipe" if primary_profile.get("source_record_id") else "nutrition_profile",
+                            "source_type": "nutrition_profile",
                         }
 
                         self._recipes[code] = recipe_record

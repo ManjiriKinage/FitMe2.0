@@ -143,6 +143,7 @@ export interface BatchFoodLogConfirmResponse {
   total_calories: number;
   message: string;
   saved_logs: FoodLogItem[];
+  daily_summary?: DashboardSummary | null;
 }
 
 export interface FoodLogItem {
@@ -158,6 +159,9 @@ export interface FoodLogItem {
   meal_type: MealType;
   logged_at: string;
   created_at?: string;
+  food_image_id?: string | null;
+  food_id?: string | null;
+  profile_id?: string | null;
 }
 
 export interface DailyMacroTotals {
@@ -200,6 +204,7 @@ export interface DetectedFoodItem {
   serving_unit: string;
   confidence: "high" | "medium" | "low" | string;
   assumptions?: string[];
+  uncertainty?: string | null;
   clarification_needed?: string | null;
   estimated_calories: number;
   protein_g: number;
@@ -219,7 +224,10 @@ export interface MealImageAnalysisResponse {
   is_cached_analysis: boolean;
   requires_confirmation: boolean;
   uncertainty_notice: string;
+  overall_uncertainty?: string | null;
   foods: DetectedFoodItem[];
+  detected_labels?: string[];
+  original_ai_prediction?: Record<string, any>[] | null;
   total_calories: number;
   total_protein_g: number;
   total_carbohydrates_g: number;
@@ -228,6 +236,12 @@ export interface MealImageAnalysisResponse {
   model_version?: string;
   analysis_version?: string;
   processing_time_ms?: number | null;
+  token_usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  } | null;
+  cache_hit_savings?: string | null;
 }
 
 export interface ConfirmedFoodItem {
@@ -252,6 +266,8 @@ export interface MealScanConfirmRequest {
   items: ConfirmedFoodItem[];
   deleted_items?: string[];
   allow_training_consent?: boolean;
+  logged_at?: string;
+  idempotency_key?: string;
 }
 
 export interface MealScanConfirmResponse {
@@ -261,6 +277,7 @@ export interface MealScanConfirmResponse {
   saved_logs: FoodLogItem[];
   feedback_saved: boolean;
   message: string;
+  daily_summary?: DashboardSummary | null;
 }
 
 export interface RecalculateItemRequest {
