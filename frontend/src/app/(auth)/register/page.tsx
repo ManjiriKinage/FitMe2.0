@@ -5,22 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
-import { ActivityLevelType, FitnessGoalType, GenderType, CalorieCalculationResult } from "@/types";
 import {
-  Sparkles,
-  ArrowRight,
-  Lock,
-  Mail,
-  User,
-  Scale,
-  Ruler,
-  Calendar,
-  AlertCircle,
-  Loader2,
-  CheckCircle2,
-  Flame,
-  Info
-} from "lucide-react";
+  ActivityLevelType,
+  FitnessGoalType,
+  GenderType,
+  CalorieCalculationResult,
+} from "@/types";
+import LiveTargetPreviewCard from "@/components/auth/LiveTargetPreviewCard";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -60,7 +52,7 @@ export default function RegisterPage() {
           target_weight_kg: targetWeightKg ? Number(targetWeightKg) : undefined,
         });
         if (active) setPreview(res);
-      } catch (e) {
+      } catch {
         // Silent catch for live preview
       } finally {
         if (active) setCalculatingPreview(false);
@@ -109,8 +101,7 @@ export default function RegisterPage() {
         throw new Error("Could not complete user registration.");
       }
 
-      // If email confirmation is required, Supabase returns a user but not an active session
-      // If session exists or auto-confirmed, create profile on backend
+      // 2. Create profile on backend
       try {
         await api.createProfile({
           full_name: fullName.trim(),
@@ -124,14 +115,14 @@ export default function RegisterPage() {
         });
       } catch (profileErr: any) {
         console.warn("Profile creation response:", profileErr);
-        // If profile creation failed because confirmation email was sent, inform user
       }
 
       if (authData.session) {
         router.push("/home");
       } else {
-        // Confirmation email mode
-        alert("Account registered successfully! Please check your email to confirm your account, then log in.");
+        alert(
+          "Account registered successfully! Please check your email to confirm your account, then log in."
+        );
         router.push("/login");
       }
     } catch (err: any) {
@@ -142,318 +133,300 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-cream py-10 px-4 flex flex-col justify-center items-center">
-      <div className="max-w-4xl w-full">
-        {/* Brand header */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-3">
-            <div className="w-10 h-10 rounded-2xl bg-charcoal flex items-center justify-center text-cream font-bold text-lg shadow-soft">
-              <span className="text-sage font-black">.</span>Fit
-            </div>
-            <span className="font-extrabold text-2xl tracking-tight text-charcoal">FitMe</span>
-          </Link>
-          <h1 className="text-3xl font-extrabold text-charcoal tracking-tight">Create your personal profile</h1>
-          <p className="text-sm text-charcoal/60 mt-1 max-w-md mx-auto">
-            Get personalized Mifflin-St Jeor daily calories and start logging foods effortlessly.
-          </p>
-        </div>
+    <main className="min-h-screen bg-[#faf9f6] flex flex-col items-center px-4 sm:px-8 lg:px-28 py-8 selection:bg-[#7c9a7e]/20 selection:text-[#22332d]">
+      <div className="w-full max-w-[1280px] flex flex-col items-center">
+        {/* Brand Logo Header */}
+        <Link
+          href="/"
+          className="flex items-center gap-2.5 font-bold text-[22px] text-[#22332d] focus:outline-none focus:ring-2 focus:ring-[#7c9a7e] rounded-xl"
+          aria-label="FitMe Home"
+        >
+          <span
+            className="w-10 h-10 rounded-[12px] bg-[#22332d] text-white flex items-center justify-center text-sm font-bold tracking-tight select-none"
+            aria-hidden="true"
+          >
+            .fit
+          </span>
+          <span>FitMe</span>
+        </Link>
+
+        <h1 className="text-[34px] sm:text-[38px] font-bold text-[#22332d] mt-4 tracking-tight text-center">
+          Create your profile
+        </h1>
+        <p className="text-[14px] text-[#5b6b64] text-center mt-2">
+          Get a personalised daily calorie target and start logging in minutes.
+        </p>
 
         {errorMsg && (
-          <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div
+            role="alert"
+            className="w-full max-w-2xl mt-4 p-3.5 rounded-[14px] bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2"
+          >
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{errorMsg}</span>
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Main Form (7 cols) */}
-          <div className="lg:col-span-7 bg-white rounded-4xl p-6 sm:p-8 border border-mint shadow-soft-lg">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Account Credentials */}
-              <div className="space-y-4">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-charcoal/50 pb-2 border-b border-charcoal/5">
-                  1. Account Information
-                </h2>
+        {/* 2-Column Responsive Layout (.c on left, .dk on right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6 mt-7 w-full items-start">
+          {/* Left Form Card (.c) */}
+          <div className="bg-white rounded-[28px] p-6 sm:p-8 shadow-[0_1px_3px_rgba(34,51,45,0.06)] border border-[#dfe6e1]/40 flex flex-col">
+            <form onSubmit={handleSubmit} className="flex flex-col">
+              {/* 1 · ACCOUNT */}
+              <div className="text-[12px] font-bold tracking-[0.08em] text-[#5b6b64] uppercase mb-3">
+                1 · ACCOUNT
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <div>
+                  <label
+                    htmlFor="register-fullname"
+                    className="block text-[13px] font-semibold text-[#3a4a43]"
+                  >
+                    Full name
+                  </label>
+                  <input
+                    id="register-fullname"
+                    type="text"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="e.g. Zahra Sharma"
+                    className="w-full h-12 mt-1.5 px-4 rounded-[14px] border border-[#dfe6e1] bg-white text-[15px] font-medium text-[#22332d] placeholder:text-[#5b6b64]/50 focus:border-[#7c9a7e] focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]/20 transition-all"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label
+                      htmlFor="register-email"
+                      className="block text-[13px] font-semibold text-[#3a4a43]"
+                    >
+                      Email
+                    </label>
+                    <input
+                      id="register-email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      className="w-full h-12 mt-1.5 px-4 rounded-[14px] border border-[#dfe6e1] bg-white text-[15px] font-medium text-[#22332d] placeholder:text-[#5b6b64]/50 focus:border-[#7c9a7e] focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]/20 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="register-password"
+                      className="block text-[13px] font-semibold text-[#3a4a43]"
+                    >
+                      Password
+                    </label>
+                    <input
+                      id="register-password"
+                      type="password"
+                      required
+                      minLength={6}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full h-12 mt-1.5 px-4 rounded-[14px] border border-[#dfe6e1] bg-white text-[15px] font-medium text-[#22332d] placeholder:text-[#5b6b64]/50 focus:border-[#7c9a7e] focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]/20 transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 2 · BODY */}
+              <div className="text-[12px] font-bold tracking-[0.08em] text-[#5b6b64] uppercase mt-6 mb-3">
+                2 · BODY
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <label
+                    htmlFor="register-age"
+                    className="block text-[13px] font-semibold text-[#3a4a43]"
+                  >
+                    Age
+                  </label>
+                  <input
+                    id="register-age"
+                    type="number"
+                    required
+                    min={10}
+                    max={120}
+                    value={age}
+                    onChange={(e) => setAge(Number(e.target.value))}
+                    className="w-full h-12 mt-1.5 px-4 rounded-[14px] border border-[#dfe6e1] bg-white text-[15px] font-medium text-[#22332d] focus:border-[#7c9a7e] focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]/20 transition-all"
+                  />
+                </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-charcoal/70 mb-1.5">Full Name</label>
-                  <div className="relative">
-                    <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-charcoal/40" />
-                    <input
-                      type="text"
-                      required
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="e.g. Zahra Sharma"
-                      className="w-full pl-10 pr-4 py-2.5 bg-cream/60 rounded-xl border border-charcoal/10 focus:border-sage focus:ring-2 focus:ring-sage/20 outline-none text-charcoal text-sm transition"
-                    />
-                  </div>
+                  <label
+                    htmlFor="register-gender"
+                    className="block text-[13px] font-semibold text-[#3a4a43]"
+                  >
+                    Gender
+                  </label>
+                  <select
+                    id="register-gender"
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value as GenderType)}
+                    className="w-full h-12 mt-1.5 px-3 rounded-[14px] border border-[#dfe6e1] bg-white text-[15px] font-medium text-[#22332d] focus:border-[#7c9a7e] focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]/20 transition-all cursor-pointer"
+                  >
+                    <option value="female">Female</option>
+                    <option value="male">Male</option>
+                    <option value="other">Other</option>
+                    <option value="prefer_not_to_say">Prefer not to say</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="register-height"
+                    className="block text-[13px] font-semibold text-[#3a4a43]"
+                  >
+                    Height (cm)
+                  </label>
+                  <input
+                    id="register-height"
+                    type="number"
+                    required
+                    min={50}
+                    max={250}
+                    value={heightCm}
+                    onChange={(e) => setHeightCm(Number(e.target.value))}
+                    className="w-full h-12 mt-1.5 px-4 rounded-[14px] border border-[#dfe6e1] bg-white text-[15px] font-medium text-[#22332d] focus:border-[#7c9a7e] focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]/20 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="register-weight"
+                    className="block text-[13px] font-semibold text-[#3a4a43]"
+                  >
+                    Weight (kg)
+                  </label>
+                  <input
+                    id="register-weight"
+                    type="number"
+                    required
+                    step="0.1"
+                    min={20}
+                    max={300}
+                    value={currentWeightKg}
+                    onChange={(e) => setCurrentWeightKg(Number(e.target.value))}
+                    className="w-full h-12 mt-1.5 px-4 rounded-[14px] border border-[#dfe6e1] bg-white text-[15px] font-medium text-[#22332d] focus:border-[#7c9a7e] focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]/20 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* 3 · GOAL & ACTIVITY */}
+              <div className="text-[12px] font-bold tracking-[0.08em] text-[#5b6b64] uppercase mt-6 mb-3">
+                3 · GOAL &amp; ACTIVITY
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <div>
+                  <label
+                    htmlFor="register-goal"
+                    className="block text-[13px] font-semibold text-[#3a4a43]"
+                  >
+                    Primary goal
+                  </label>
+                  <select
+                    id="register-goal"
+                    value={fitnessGoal}
+                    onChange={(e) => setFitnessGoal(e.target.value as FitnessGoalType)}
+                    className="w-full h-12 mt-1.5 px-3 rounded-[14px] border border-[#dfe6e1] bg-white text-[15px] font-medium text-[#22332d] focus:border-[#7c9a7e] focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]/20 transition-all cursor-pointer"
+                  >
+                    <option value="lose_weight">Lose weight (sustainable)</option>
+                    <option value="maintain_weight">Maintain weight</option>
+                    <option value="gain_muscle">Gain muscle</option>
+                    <option value="gain_weight">Gain weight</option>
+                  </select>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-charcoal/70 mb-1.5">Email Address</label>
-                    <div className="relative">
-                      <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-charcoal/40" />
-                      <input
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="zahra@example.com"
-                        className="w-full pl-10 pr-4 py-2.5 bg-cream/60 rounded-xl border border-charcoal/10 focus:border-sage focus:ring-2 focus:ring-sage/20 outline-none text-charcoal text-sm transition"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-charcoal/70 mb-1.5">Password</label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-charcoal/40" />
-                      <input
-                        type="password"
-                        required
-                        minLength={6}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full pl-10 pr-4 py-2.5 bg-cream/60 rounded-xl border border-charcoal/10 focus:border-sage focus:ring-2 focus:ring-sage/20 outline-none text-charcoal text-sm transition"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Physical Bio-metrics */}
-              <div className="space-y-4 pt-2">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-charcoal/50 pb-2 border-b border-charcoal/5">
-                  2. Body Metrics & Biological Data
-                </h2>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-charcoal/70 mb-1.5">Age (Years)</label>
-                    <input
-                      type="number"
-                      required
-                      min={10}
-                      max={120}
-                      value={age}
-                      onChange={(e) => setAge(Number(e.target.value))}
-                      className="w-full px-3 py-2 bg-cream/60 rounded-xl border border-charcoal/10 focus:border-sage outline-none text-charcoal text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-charcoal/70 mb-1.5">Gender</label>
-                    <select
-                      value={gender}
-                      onChange={(e) => setGender(e.target.value as GenderType)}
-                      className="w-full px-3 py-2 bg-cream/60 rounded-xl border border-charcoal/10 focus:border-sage outline-none text-charcoal text-sm"
+                    <label
+                      htmlFor="register-target-weight"
+                      className="block text-[13px] font-semibold text-[#3a4a43]"
                     >
-                      <option value="female">Female</option>
-                      <option value="male">Male</option>
-                      <option value="other">Other</option>
-                      <option value="prefer_not_to_say">Prefer not to say</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-charcoal/70 mb-1.5">Height (cm)</label>
+                      Target weight (optional)
+                    </label>
                     <input
-                      type="number"
-                      required
-                      min={50}
-                      max={250}
-                      value={heightCm}
-                      onChange={(e) => setHeightCm(Number(e.target.value))}
-                      className="w-full px-3 py-2 bg-cream/60 rounded-xl border border-charcoal/10 focus:border-sage outline-none text-charcoal text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-charcoal/70 mb-1.5">Weight (kg)</label>
-                    <input
-                      type="number"
-                      required
-                      step="0.1"
-                      min={20}
-                      max={300}
-                      value={currentWeightKg}
-                      onChange={(e) => setCurrentWeightKg(Number(e.target.value))}
-                      className="w-full px-3 py-2 bg-cream/60 rounded-xl border border-charcoal/10 focus:border-sage outline-none text-charcoal text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Activity & Goals */}
-              <div className="space-y-4 pt-2">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-charcoal/50 pb-2 border-b border-charcoal/5">
-                  3. Fitness Goal & Activity
-                </h2>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-charcoal/70 mb-1.5">Primary Fitness Goal</label>
-                    <select
-                      value={fitnessGoal}
-                      onChange={(e) => setFitnessGoal(e.target.value as FitnessGoalType)}
-                      className="w-full px-3 py-2.5 bg-cream/60 rounded-xl border border-charcoal/10 focus:border-sage outline-none text-charcoal text-sm font-medium"
-                    >
-                      <option value="lose_weight">Lose Weight (Sustainable Deficit)</option>
-                      <option value="maintain_weight">Maintain Weight (TDEE balance)</option>
-                      <option value="gain_muscle">Gain Muscle (High Protein & Lean Surplus)</option>
-                      <option value="gain_weight">Gain Weight (Calorie Surplus)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-charcoal/70 mb-1.5">Target Weight (kg, optional)</label>
-                    <input
+                      id="register-target-weight"
                       type="number"
                       step="0.1"
                       placeholder="e.g. 60"
                       value={targetWeightKg}
                       onChange={(e) => setTargetWeightKg(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-cream/60 rounded-xl border border-charcoal/10 focus:border-sage outline-none text-charcoal text-sm"
+                      className="w-full h-12 mt-1.5 px-4 rounded-[14px] border border-[#dfe6e1] bg-white text-[15px] font-medium text-[#22332d] placeholder:text-[#5b6b64]/50 focus:border-[#7c9a7e] focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]/20 transition-all"
                     />
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-charcoal/70 mb-1.5">Daily Activity Level</label>
-                  <select
-                    value={activityLevel}
-                    onChange={(e) => setActivityLevel(e.target.value as ActivityLevelType)}
-                    className="w-full px-3 py-2.5 bg-cream/60 rounded-xl border border-charcoal/10 focus:border-sage outline-none text-charcoal text-sm font-medium"
-                  >
-                    <option value="sedentary">Sedentary (Desk job, little to no exercise)</option>
-                    <option value="lightly_active">Lightly Active (1–3 days light exercise)</option>
-                    <option value="moderately_active">Moderately Active (3–5 days moderate workout)</option>
-                    <option value="very_active">Very Active (6–7 days hard workout)</option>
-                    <option value="extra_active">Extra Active (Very heavy labor or athlete training)</option>
-                  </select>
+                  <div>
+                    <label
+                      htmlFor="register-activity"
+                      className="block text-[13px] font-semibold text-[#3a4a43]"
+                    >
+                      Activity level
+                    </label>
+                    <select
+                      id="register-activity"
+                      value={activityLevel}
+                      onChange={(e) =>
+                        setActivityLevel(e.target.value as ActivityLevelType)
+                      }
+                      className="w-full h-12 mt-1.5 px-3 rounded-[14px] border border-[#dfe6e1] bg-white text-[15px] font-medium text-[#22332d] focus:border-[#7c9a7e] focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]/20 transition-all cursor-pointer"
+                    >
+                      <option value="sedentary">Sedentary (little or no exercise)</option>
+                      <option value="lightly_active">Lightly active (1-3 days/week)</option>
+                      <option value="moderately_active">Moderately active (3-5 days/week)</option>
+                      <option value="very_active">Very active (6-7 days/week)</option>
+                      <option value="extra_active">Extra active (very hard exercise)</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
+              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 px-6 bg-charcoal text-cream font-bold rounded-2xl hover:bg-charcoal-light transition shadow-soft flex items-center justify-center gap-2 text-base disabled:opacity-75"
+                className="w-full h-[52px] rounded-full bg-[#22332d] hover:bg-[#182420] text-white font-semibold text-[15px] flex items-center justify-center gap-2 transition-colors disabled:opacity-70 mt-7 focus:outline-none focus:ring-2 focus:ring-[#22332d]/40 focus:ring-offset-2"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Calculating & Creating Account...</span>
+                    <Loader2 className="w-5 h-5 animate-spin text-white" />
+                    <span>Calculating &amp; creating profile...</span>
                   </>
                 ) : (
-                  <>
-                    <span>Complete Profile & Open Dashboard</span>
-                    <ArrowRight className="w-5 h-5 text-sage" />
-                  </>
+                  <span>Complete profile &amp; open dashboard &rarr;</span>
                 )}
               </button>
-            </form>
 
-            <div className="mt-6 pt-6 border-t border-charcoal/10 text-center">
-              <p className="text-sm text-charcoal/70">
+              {/* Login link */}
+              <p className="text-[14px] text-[#5b6b64] text-center mt-3.5">
                 Already registered?{" "}
-                <Link href="/login" className="font-bold text-sage hover:text-sage-600 transition">
-                  Sign In
+                <Link
+                  href="/login"
+                  className="font-bold text-[#5f7d61] hover:text-[#22332d] transition-colors focus:outline-none focus:underline"
+                >
+                  Sign in
                 </Link>
               </p>
-            </div>
+            </form>
           </div>
 
-          {/* Live Preview Card (5 cols) */}
-          <div className="lg:col-span-5 bg-charcoal text-cream rounded-4xl p-6 sm:p-7 shadow-soft-lg space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-cream/10">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-sage" />
-                <h3 className="font-bold text-base text-cream">Live Target Preview</h3>
-              </div>
-              {calculatingPreview && <Loader2 className="w-4 h-4 animate-spin text-sage" />}
-            </div>
-
-            {preview ? (
-              <div className="space-y-5">
-                {/* Calories Budget Ring Card */}
-                <div className="bg-charcoal-light/70 rounded-3xl p-5 border border-cream/10 text-center">
-                  <span className="text-xs font-semibold text-cream/70 uppercase tracking-wider block mb-1">
-                    Recommended Daily Goal
-                  </span>
-                  <div className="text-4xl font-black text-sage flex items-center justify-center gap-1">
-                    {preview.daily_calorie_target}
-                    <span className="text-sm font-medium text-cream/60">kcal/day</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-cream/10 text-xs">
-                    <div>
-                      <span className="text-cream/50 block">Est. BMR</span>
-                      <span className="font-bold text-cream text-sm">{preview.bmr} kcal</span>
-                    </div>
-                    <div>
-                      <span className="text-cream/50 block">Est. TDEE</span>
-                      <span className="font-bold text-cream text-sm">{preview.tdee} kcal</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* BMI Screening Context */}
-                <div className="bg-cream/10 rounded-2xl p-4 flex items-center justify-between">
-                  <div>
-                    <span className="text-xs text-cream/70 block">Body Mass Index (BMI)</span>
-                    <span className="font-extrabold text-base text-cream">{preview.bmi}</span>
-                  </div>
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-sage/30 text-cream border border-sage/40">
-                    {preview.bmi_category}
-                  </span>
-                </div>
-
-                {/* Target Macros */}
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-cream/60 mb-2.5">
-                    Target Macro Distribution
-                  </h4>
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="bg-cream/10 rounded-2xl p-3 border border-cream/5">
-                      <span className="text-[11px] text-accent-blue block font-semibold">Carbs</span>
-                      <span className="font-bold text-sm text-cream">{preview.macro_targets.carbohydrates_g}g</span>
-                    </div>
-                    <div className="bg-cream/10 rounded-2xl p-3 border border-cream/5">
-                      <span className="text-[11px] text-accent-yellow block font-semibold">Protein</span>
-                      <span className="font-bold text-sm text-cream">{preview.macro_targets.protein_g}g</span>
-                    </div>
-                    <div className="bg-cream/10 rounded-2xl p-3 border border-cream/5">
-                      <span className="text-[11px] text-accent-emerald block font-semibold">Fats</span>
-                      <span className="font-bold text-sm text-cream">{preview.macro_targets.fat_g}g</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Scientific Explanation */}
-                <div className="bg-charcoal-dark/70 rounded-2xl p-4 text-xs text-cream/75 leading-relaxed border border-cream/5 flex items-start gap-2.5">
-                  <Info className="w-4 h-4 text-sage flex-shrink-0 mt-0.5" />
-                  <p>{preview.explanation}</p>
-                </div>
-
-                {/* Safety warnings if any */}
-                {preview.warnings && preview.warnings.length > 0 && (
-                  <div className="p-3 rounded-2xl bg-amber-950/40 border border-amber-600/30 text-amber-200 text-xs flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                    <span>{preview.warnings[0]}</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-12 text-cream/50 text-sm">
-                Enter your age, height, and weight to view your real-time Mifflin-St Jeor recommendation.
-              </div>
-            )}
-          </div>
+          {/* Right Live Target Preview Card */}
+          <LiveTargetPreviewCard
+            preview={preview}
+            calculating={calculatingPreview}
+          />
         </div>
       </div>
-    </div>
+    </main>
   );
 }
