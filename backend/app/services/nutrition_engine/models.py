@@ -75,6 +75,7 @@ class CandidateMatch(BaseModel):
     protein_g_per_100g: Optional[float] = None
     carbohydrates_g_per_100g: Optional[float] = None
     fat_g_per_100g: Optional[float] = None
+    fiber_g_per_100g: Optional[float] = None
     aliases: List[str] = Field(default_factory=list)
     validation_status: str = "verified"
     food_id: Optional[str] = None

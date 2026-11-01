@@ -111,6 +111,15 @@ class DashboardSummaryResponse(BaseModel):
     meals: Dict[MealType, List[FoodLogResponse]]
     timezone: str = "UTC"
 
+class SingleFoodLogResponse(BaseModel):
+    success: bool = True
+    saved_log: FoodLogResponse
+    food_log: FoodLogResponse
+    daily_summary: Optional[DashboardSummaryResponse] = None
+    message: str = "Food log saved successfully"
+
+    model_config = ConfigDict(from_attributes=True)
+
 class RecipeSearchResult(BaseModel):
     source_recipe_code: str
     name: str

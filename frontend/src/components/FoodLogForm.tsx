@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { api } from "@/lib/api";
-import { MealType, AIEstimateResponse, FoodLogItem, ParsedFoodItem } from "@/types";
+import { MealType, AIEstimateResponse, FoodLogItem, ParsedFoodItem, RecipeSearchResult, DashboardSummary } from "@/types";
 import {
   X,
   Sparkles,
@@ -15,15 +15,18 @@ import {
   ArrowRight,
   Layers,
   AlertTriangle,
-  Camera
+  Camera,
+  Search,
 } from "lucide-react";
 
 interface FoodLogFormProps {
   initialMealType?: MealType;
   onClose: () => void;
-  onSuccess: (newItem: FoodLogItem) => void;
+  onSuccess: (newItem: FoodLogItem, dailySummary?: DashboardSummary | null) => void;
   onSwitchToScan?: () => void;
 }
+
+const roundOne = (val: number): number => Math.round(val * 10) / 10;
 
 export default function FoodLogForm({
   initialMealType = "breakfast",
@@ -37,6 +40,16 @@ export default function FoodLogForm({
   const [isEstimating, setIsEstimating] = useState(false);
   const [estimateError, setEstimateError] = useState<string | null>(null);
 
+  // Live debounced search & autocomplete state
+  const [suggestions, setSuggestions] = useState<RecipeSearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
+
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // Review & Edit Editable State
   const [estimateData, setEstimateData] = useState<AIEstimateResponse | null>(null);
   const [editFoodName, setEditFoodName] = useState("");
@@ -46,6 +59,9 @@ export default function FoodLogForm({
   const [editProtein, setEditProtein] = useState<number>(0);
   const [editCarbs, setEditCarbs] = useState<number>(0);
   const [editFat, setEditFat] = useState<number>(0);
+
+  // Base nutrition reference for zero-AI local recalculation
+  const baseMacroRef = useRef<{ qty: number; calories: number; carbs: number; protein: number; fat: number } | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -60,10 +76,125 @@ export default function FoodLogForm({
     "2 medium chapatis and 1 bowl dal"
   ];
 
+  // Outside click listener to dismiss search dropdown
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
+  }, []);
+
+  // Debounced live search with request aborting and query caching
+  const handleQueryChange = (val: string) => {
+    setQuery(val);
+    setHighlightIndex(-1);
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    const trimmed = val.trim();
+    if (trimmed.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    debounceTimerRef.current = setTimeout(async () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+
+      try {
+        const results = await api.searchFoods(trimmed, 6, abortControllerRef.current.signal);
+        setSuggestions(results);
+        setShowSuggestions(results.length > 0);
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          setSuggestions([]);
+        }
+      } finally {
+        setIsSearching(false);
+      }
+    }, 250);
+  };
+
+  // Instant selection of verified food catalog item with zero AI calls
+  const handleSelectSuggestion = (item: RecipeSearchResult) => {
+    setShowSuggestions(false);
+    setQuery(`1 ${item.reported_serving_unit} ${item.name}`);
+
+    const cals = item.serving_energy_kcal != null
+      ? Math.round(item.serving_energy_kcal)
+      : Math.round((item.reported_energy_kcal_per_100g * item.reported_serving_size_g) / 100);
+    const p = roundOne(((item.reported_protein_g_per_100g || 0) * item.reported_serving_size_g) / 100);
+    const c = roundOne(((item.reported_carbohydrates_g_per_100g || 0) * item.reported_serving_size_g) / 100);
+    const f = roundOne(((item.reported_fat_g_per_100g || 0) * item.reported_serving_size_g) / 100);
+
+    setEditFoodName(item.name);
+    setEditQuantity(1);
+    setEditUnit(item.reported_serving_unit || "serving");
+    setEditCalories(cals);
+    setEditProtein(p);
+    setEditCarbs(c);
+    setEditFat(f);
+
+    baseMacroRef.current = { qty: 1, calories: cals, carbs: c, protein: p, fat: f };
+
+    setEstimateData({
+      food_name: item.name,
+      quantity: 1,
+      unit: item.reported_serving_unit || "serving",
+      estimated_calories: cals,
+      protein_g: p,
+      carbohydrates_g: c,
+      fat_g: f,
+      assumptions: `Verified profile: ${item.reported_serving_size_g}g per ${item.reported_serving_unit}`,
+      validation_status: "verified",
+      items: [
+        {
+          food_name: item.name,
+          quantity: 1,
+          unit: item.reported_serving_unit || "serving",
+          estimated_calories: cals,
+          protein_g: p,
+          carbohydrates_g: c,
+          fat_g: f,
+          serving_weight_g: item.reported_serving_size_g,
+          nutrition_source: "official_catalog",
+          validation_status: "verified",
+        }
+      ]
+    });
+  };
+
+  // Local zero-AI proportional recalculation on quantity changes
+  const handleQuantityChange = (val: number) => {
+    setEditQuantity(val);
+    if (baseMacroRef.current && baseMacroRef.current.qty > 0 && val > 0) {
+      const ratio = val / baseMacroRef.current.qty;
+      setEditCalories(Math.round(baseMacroRef.current.calories * ratio));
+      setEditCarbs(roundOne(baseMacroRef.current.carbs * ratio));
+      setEditProtein(roundOne(baseMacroRef.current.protein * ratio));
+      setEditFat(roundOne(baseMacroRef.current.fat * ratio));
+    }
+  };
+
   const handleEstimate = async (searchQuery?: string) => {
     const text = searchQuery || query;
     if (!text.trim()) return;
 
+    setShowSuggestions(false);
     setIsEstimating(true);
     setEstimateError(null);
 
@@ -78,6 +209,14 @@ export default function FoodLogForm({
       setEditProtein(res.protein_g);
       setEditCarbs(res.carbohydrates_g);
       setEditFat(res.fat_g);
+
+      baseMacroRef.current = {
+        qty: res.quantity > 0 ? res.quantity : 1,
+        calories: res.estimated_calories,
+        carbs: res.carbohydrates_g,
+        protein: res.protein_g,
+        fat: res.fat_g,
+      };
     } catch (err: any) {
       setEstimateError(err.message || "Failed to estimate food calories. Please try again.");
     } finally {
@@ -116,9 +255,9 @@ export default function FoodLogForm({
           });
 
           if (batchRes.saved_logs && batchRes.saved_logs.length > 0) {
-            onSuccess(batchRes.saved_logs[0]);
+            onSuccess(batchRes.saved_logs[0], batchRes.daily_summary);
           } else {
-            onSuccess({} as any);
+            onSuccess({} as any, batchRes.daily_summary);
           }
         } catch (batchErr) {
           console.warn("Batch confirmation failed, falling back to consolidated single entry:", batchErr);
@@ -134,11 +273,11 @@ export default function FoodLogForm({
             meal_type: mealType,
             logged_at: new Date().toISOString(),
           });
-          onSuccess(savedFallback);
+          onSuccess(savedFallback.saved_log || savedFallback.food_log, savedFallback.daily_summary);
         }
       } else {
-        // Single item save
-        const savedItem = await api.createFoodLog({
+        // Single item save with server-calculated daily summary
+        const res = await api.createFoodLog({
           food_name: editFoodName.trim(),
           quantity: Number(editQuantity) > 0 ? Number(editQuantity) : 1,
           unit: editUnit.trim() || "serving",
@@ -149,7 +288,7 @@ export default function FoodLogForm({
           meal_type: mealType,
           logged_at: new Date().toISOString(),
         });
-        onSuccess(savedItem);
+        onSuccess(res.saved_log || res.food_log, res.daily_summary);
       }
 
       onClose();
@@ -239,38 +378,106 @@ export default function FoodLogForm({
             <label className="block text-[10px] font-bold uppercase tracking-wider text-charcoal/60 mb-1.5">
               Describe what you ate
             </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
+            <div ref={searchContainerRef} className="relative">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => handleQueryChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (showSuggestions && suggestions.length > 0) {
+                        if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          setHighlightIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
+                          return;
+                        } else if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          setHighlightIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
+                          return;
+                        } else if (e.key === "Enter" && highlightIndex >= 0) {
+                          e.preventDefault();
+                          handleSelectSuggestion(suggestions[highlightIndex]);
+                          return;
+                        } else if (e.key === "Escape") {
+                          setShowSuggestions(false);
+                          return;
+                        }
+                      }
+
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        setShowSuggestions(false);
+                        handleEstimate();
+                      }
+                    }}
+                    placeholder="e.g. roti, dal, rice, or 2 medium chapatis"
+                    className="w-full pl-9 pr-3.5 py-2.5 bg-cream/70 rounded-xl border border-charcoal/10 focus:border-sage focus:ring-2 focus:ring-sage/20 outline-none text-charcoal text-xs shadow-xs"
+                  />
+                  <Search className="w-4 h-4 text-charcoal/40 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  {isSearching && (
+                    <Loader2 className="w-3.5 h-3.5 text-sage animate-spin absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSuggestions(false);
                     handleEstimate();
-                  }
-                }}
-                placeholder="e.g. 2 medium chapatis, 2 big bajra bhakri, or 1 bowl rice"
-                className="flex-1 px-3.5 py-2.5 bg-cream/70 rounded-xl border border-charcoal/10 focus:border-sage focus:ring-2 focus:ring-sage/20 outline-none text-charcoal text-xs"
-              />
-              <button
-                type="button"
-                onClick={() => handleEstimate()}
-                disabled={isEstimating || !query.trim()}
-                className="px-4 py-2.5 bg-sage text-white font-bold rounded-xl hover:bg-sage-600 transition shadow-soft flex items-center gap-1.5 text-xs disabled:opacity-60 flex-shrink-0"
-              >
-                {isEstimating ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Estimating...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Estimate</span>
-                  </>
-                )}
-              </button>
+                  }}
+                  disabled={isEstimating || !query.trim()}
+                  className="px-4 py-2.5 bg-sage text-white font-bold rounded-xl hover:bg-sage-600 transition shadow-soft flex items-center gap-1.5 text-xs disabled:opacity-60 flex-shrink-0"
+                >
+                  {isEstimating ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Estimating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Estimate</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Live Search Autocomplete Dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl shadow-xl border border-mint overflow-hidden z-30 animate-fade-in divide-y divide-charcoal/5">
+                  <div className="px-3 py-1.5 bg-cream/60 flex items-center justify-between text-[10px] text-charcoal/60 font-semibold uppercase tracking-wider">
+                    <span>Verified Catalog Matches ({suggestions.length})</span>
+                    <span>Instant • Zero AI</span>
+                  </div>
+                  {suggestions.map((item, idx) => (
+                    <button
+                      key={item.source_recipe_code || idx}
+                      type="button"
+                      onClick={() => handleSelectSuggestion(item)}
+                      onMouseEnter={() => setHighlightIndex(idx)}
+                      className={`w-full text-left px-3.5 py-2.5 flex items-center justify-between transition ${
+                        highlightIndex === idx ? "bg-mint/60 text-charcoal" : "hover:bg-cream/50 text-charcoal"
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0 pr-3">
+                        <p className="text-xs font-bold text-charcoal truncate">{item.name}</p>
+                        <p className="text-[10px] text-charcoal/60 truncate">
+                          {item.reported_serving_size_g}g per {item.reported_serving_unit} • {roundOne(item.reported_energy_kcal_per_100g)} kcal/100g
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className="text-[11px] font-black text-sage bg-sage/10 px-2 py-0.5 rounded-lg">
+                          {item.serving_energy_kcal != null
+                            ? Math.round(item.serving_energy_kcal)
+                            : Math.round((item.reported_energy_kcal_per_100g * item.reported_serving_size_g) / 100)}{" "}
+                          kcal
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* User guidance tip */}
@@ -385,7 +592,7 @@ export default function FoodLogForm({
                     type="number"
                     step="0.1"
                     value={editQuantity}
-                    onChange={(e) => setEditQuantity(Number(e.target.value))}
+                    onChange={(e) => handleQuantityChange(Number(e.target.value))}
                     className="w-full px-3 py-1.5 bg-cream/50 rounded-xl border border-charcoal/10 text-charcoal text-xs font-semibold outline-none focus:border-sage"
                   />
                 </div>

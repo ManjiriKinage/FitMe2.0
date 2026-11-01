@@ -522,7 +522,7 @@ class ImageAnalysisService:
             filter_clause = ",".join(filters)
             res = (
                 client.table("food_catalog")
-                .select("id, canonical_name, normalized_name, aliases, category, food_state, is_active, nutrition_profiles(*)")
+                .select("id, canonical_name, normalized_name, aliases, category, food_state, is_active, nutrition_profiles(id, food_id, preparation_method, nutrition_basis, energy_kcal, protein_g, carb_g, fat_g, fiber_g, default_portion_weight_g, default_portion_description, validation_status)")
                 .eq("is_active", True)
                 .or_(filter_clause)
                 .limit(10)
@@ -688,7 +688,7 @@ class ImageAnalysisService:
         else:
             # 2. Check local in-memory catalog from NutritionEngine
             candidates = nutrition_engine.search_candidates(raw_name, limit=3)
-            if candidates and candidates[0].food_id and candidates[0].profile_id:
+            if candidates and candidates[0].score >= 70.0 and candidates[0].food_id and candidates[0].profile_id:
                 top = candidates[0]
                 food_id = top.food_id
                 profile_id = top.profile_id
@@ -804,9 +804,9 @@ class ImageAnalysisService:
             # Found in Supabase catalog
             return cls.calculate_detected_item_nutrition(item, client=client)
 
-        # 2. Search local indexed catalog
+        # 2. Search local indexed catalog with confidence threshold
         candidates = nutrition_engine.search_candidates(raw_name, limit=3)
-        if candidates and candidates[0].food_id and candidates[0].profile_id:
+        if candidates and candidates[0].score >= 70.0 and candidates[0].food_id and candidates[0].profile_id:
             return cls.calculate_detected_item_nutrition(item, client=client)
 
         # 3. No reliable profile exists in catalog: Invoke AI estimation with explicit assumptions

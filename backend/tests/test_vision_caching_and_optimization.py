@@ -398,7 +398,7 @@ async def test_instant_local_nutrition_recalculation_uses_zero_ai():
         # Scaled from local profile/clinical heuristic basis with zero AI calls
         assert res.estimated_calories > 0
         assert res.protein_g > 0
-        assert res.nutrition_source in ["verified_profile", "clinical_heuristic"]
+        assert res.nutrition_source in ["verified_profile", "nutrition_profile", "clinical_heuristic"]
 
 
 @pytest.mark.asyncio

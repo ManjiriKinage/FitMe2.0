@@ -35,8 +35,13 @@ from app.services.nutrition_engine.ai_fallback import interpret_with_ai
 
 logger = logging.getLogger(__name__)
 
-DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "data_pipeline", "data"))
-CATALOG_PROFILES_JSON = os.path.join(DATA_DIR, "food_catalog_profiles.json")
+APP_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data"))
+PIPELINE_DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "data_pipeline", "data"))
+CATALOG_PROFILES_JSON = (
+    os.path.join(APP_DATA_DIR, "food_catalog_profiles.json")
+    if os.path.exists(os.path.join(APP_DATA_DIR, "food_catalog_profiles.json"))
+    else os.path.join(PIPELINE_DATA_DIR, "food_catalog_profiles.json")
+)
 
 
 class NutritionEngine:
@@ -155,7 +160,7 @@ class NutritionEngine:
             return None
         try:
             res = client.table("food_catalog").select(
-                "id, canonical_name, normalized_name, aliases, category, nutrition_profiles(*)"
+                "id, canonical_name, normalized_name, aliases, category, nutrition_profiles(id, food_id, preparation_method, nutrition_basis, energy_kcal, protein_g, carb_g, fat_g, fiber_g, default_portion_weight_g, default_portion_description, validation_status)"
             ).or_(f"normalized_name.eq.{norm_q},canonical_name.ilike.%{food_term}%").limit(1).execute()
 
             if res.data and len(res.data) > 0:
@@ -334,6 +339,7 @@ class NutritionEngine:
                 protein_g_per_100g=r["reported_protein_g_per_100g"],
                 carbohydrates_g_per_100g=r["reported_carbohydrates_g_per_100g"],
                 fat_g_per_100g=r["reported_fat_g_per_100g"],
+                fiber_g_per_100g=r.get("reported_fiber_g_per_100g"),
                 aliases=r["aliases"],
                 validation_status=r["validation_status"],
                 food_id=r.get("food_id"),
@@ -356,6 +362,7 @@ class NutritionEngine:
                 protein_g_per_100g=r["reported_protein_g_per_100g"],
                 carbohydrates_g_per_100g=r["reported_carbohydrates_g_per_100g"],
                 fat_g_per_100g=r["reported_fat_g_per_100g"],
+                fiber_g_per_100g=r.get("reported_fiber_g_per_100g"),
                 aliases=r["aliases"],
                 validation_status=r["validation_status"],
                 food_id=r.get("food_id"),
@@ -400,6 +407,7 @@ class NutritionEngine:
                     protein_g_per_100g=r["reported_protein_g_per_100g"],
                     carbohydrates_g_per_100g=r["reported_carbohydrates_g_per_100g"],
                     fat_g_per_100g=r["reported_fat_g_per_100g"],
+                    fiber_g_per_100g=r.get("reported_fiber_g_per_100g"),
                     aliases=r["aliases"],
                     validation_status=r["validation_status"],
                     food_id=r.get("food_id"),

@@ -146,6 +146,14 @@ export interface BatchFoodLogConfirmResponse {
   daily_summary?: DashboardSummary | null;
 }
 
+export interface SingleFoodLogResponse {
+  success: boolean;
+  saved_log: FoodLogItem;
+  food_log: FoodLogItem;
+  daily_summary?: DashboardSummary | null;
+  message?: string;
+}
+
 export interface FoodLogItem {
   id: string;
   user_id: string;

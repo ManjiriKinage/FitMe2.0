@@ -11,6 +11,7 @@ import {
   UserPreferenceItem,
   BatchFoodLogConfirmRequest,
   BatchFoodLogConfirmResponse,
+  SingleFoodLogResponse,
   MealImageAnalysisResponse,
   MealScanConfirmRequest,
   MealScanConfirmResponse,
@@ -19,6 +20,15 @@ import {
 } from "../types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// Client-side search cache with 5-minute TTL and bounded size
+interface SearchCacheEntry {
+  data: RecipeSearchResult[];
+  timestamp: number;
+}
+const searchCache = new Map<string, SearchCacheEntry>();
+const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000;
+const SEARCH_CACHE_MAX_ENTRIES = 200;
 
 export function getUserTimezone(): string {
   try {
@@ -135,8 +145,35 @@ export const api = {
     });
   },
 
-  searchFoods: async (query: string, limit: number = 10): Promise<RecipeSearchResult[]> => {
-    return fetchWithAuth<RecipeSearchResult[]>(`/api/food/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+  searchFoods: async (
+    query: string,
+    limit: number = 10,
+    signal?: AbortSignal
+  ): Promise<RecipeSearchResult[]> => {
+    const trimmed = query.trim().toLowerCase();
+    if (!trimmed) {
+      return [];
+    }
+
+    const cacheKey = `${trimmed}:${limit}`;
+    const cached = searchCache.get(cacheKey);
+    const now = Date.now();
+    if (cached && now - cached.timestamp < SEARCH_CACHE_TTL_MS) {
+      return cached.data;
+    }
+
+    const results = await fetchWithAuth<RecipeSearchResult[]>(
+      `/api/food/search?q=${encodeURIComponent(trimmed)}&limit=${limit}`,
+      { signal }
+    );
+
+    if (searchCache.size >= SEARCH_CACHE_MAX_ENTRIES) {
+      const oldestKey = searchCache.keys().next().value;
+      if (oldestKey) searchCache.delete(oldestKey);
+    }
+    searchCache.set(cacheKey, { data: results, timestamp: now });
+
+    return results;
   },
 
   getRecipeDetail: async (recipeCode: string): Promise<RecipeDetailResponse> => {
@@ -154,8 +191,8 @@ export const api = {
     return fetchWithAuth<FoodLogItem[]>(`/api/food/logs${queryStr}`);
   },
 
-  createFoodLog: async (data: Omit<FoodLogItem, "id" | "user_id">): Promise<FoodLogItem> => {
-    return fetchWithAuth<FoodLogItem>("/api/food/logs", {
+  createFoodLog: async (data: Omit<FoodLogItem, "id" | "user_id">): Promise<SingleFoodLogResponse> => {
+    return fetchWithAuth<SingleFoodLogResponse>("/api/food/logs", {
       method: "POST",
       body: JSON.stringify(data),
     });

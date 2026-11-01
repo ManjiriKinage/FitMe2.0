@@ -164,7 +164,7 @@ async def confirm_scanned_meal(
         try:
             existing_logs_res = (
                 client.table("food_logs")
-                .select("*")
+                .select("id, user_id, food_name, quantity, unit, estimated_calories, protein_g, carbohydrates_g, fat_g, fiber_g, meal_type, logged_at, created_at, food_image_id, food_id, profile_id")
                 .eq("user_id", user["id"])
                 .eq("food_image_id", payload.image_id)
                 .execute()

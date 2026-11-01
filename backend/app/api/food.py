@@ -18,16 +18,23 @@ from app.schemas.food import (
     FoodFeedbackRequest,
     BatchFoodLogRequest,
     BatchFoodLogResponse,
+    SingleFoodLogResponse,
     UserPreferenceResponse,
     UserPreferenceUpdate
 )
 from app.services.nutrition_engine import nutrition_engine
 from app.services.nutrition_service import fetch_and_calculate_daily_dashboard
 from app.services.user_learning import UserPreferenceLearningEngine
+import time
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/food", tags=["Food & AI Estimation"])
+
+# In-memory search query cache with TTL (1 hour) and bounded capacity
+_SEARCH_QUERY_CACHE: Dict[str, Dict[str, Any]] = {}
+_MAX_SEARCH_CACHE_ENTRIES = 500
+_SEARCH_CACHE_TTL_SECONDS = 3600.0
 
 def _is_valid_uuid(val: Any) -> bool:
     """Verifies string is a valid UUID to prevent PostgreSQL type errors."""
@@ -144,9 +151,20 @@ async def search_food_catalog(
     q: str = Query(..., min_length=1, description="Food name or recipe query"),
     limit: int = Query(10, ge=1, le=50)
 ):
-    """Searches food catalog using nutrition engine."""
+    """
+    Searches food catalog using nutrition engine with high-performance in-memory caching.
+    Serves identical queries in sub-millisecond time.
+    """
+    norm_key = f"{q.strip().lower()}:{limit}"
+    now = time.time()
+
+    if norm_key in _SEARCH_QUERY_CACHE:
+        entry = _SEARCH_QUERY_CACHE[norm_key]
+        if now - entry["timestamp"] < _SEARCH_CACHE_TTL_SECONDS:
+            return entry["data"]
+
     matches = nutrition_engine.search_candidates(q, limit=limit)
-    return [
+    results = [
         RecipeSearchResult(
             source_recipe_code=m.recipe_code,
             name=m.name,
@@ -161,6 +179,18 @@ async def search_food_catalog(
         )
         for m in matches
     ]
+
+    # Enforce bounded capacity eviction
+    if len(_SEARCH_QUERY_CACHE) >= _MAX_SEARCH_CACHE_ENTRIES:
+        oldest_key = next(iter(_SEARCH_QUERY_CACHE))
+        _SEARCH_QUERY_CACHE.pop(oldest_key, None)
+
+    _SEARCH_QUERY_CACHE[norm_key] = {
+        "timestamp": now,
+        "data": results
+    }
+
+    return results
 
 @router.get("/recipes/{recipe_code}", response_model=RecipeDetailResponse)
 async def get_recipe_detail(recipe_code: str):
@@ -235,25 +265,58 @@ async def get_food_logs(
     res = query.order("logged_at", desc=True).range(offset, offset + page_size - 1).execute()
     return res.data or []
 
-@router.post("/logs", response_model=FoodLogResponse)
+@router.post("/logs", response_model=SingleFoodLogResponse)
 async def create_food_log(
     payload: FoodLogCreate,
     user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Saves a food entry into the food_logs table.
-    Ensures user ID is securely verified from authentication token.
-    Transparently updates user preference learning for future predictions.
+    - Prevents rapid double-click duplicate submissions within 5 seconds.
+    - Preserves legitimate repeated food entries outside rapid accidental clicks.
+    - Reconciles user preference learning.
+    - Returns saved log and updated daily_summary so client updates in-place with zero reload.
     """
     client = get_supabase_admin_client(user) or get_supabase_anon_client()
     if not client:
         raise HTTPException(status_code=500, detail="Database client not configured.")
 
     log_time = payload.logged_at.isoformat() if payload.logged_at else datetime.now(timezone.utc).isoformat()
+    food_name_clean = payload.food_name.strip()
+
+    # Rapid double-submission duplicate check (5-second window)
+    recent_cutoff = datetime.fromtimestamp(datetime.now(timezone.utc).timestamp() - 5.0, timezone.utc).isoformat()
+    try:
+        recent = (
+            client.table("food_logs")
+            .select("id, user_id, food_name, quantity, unit, estimated_calories, protein_g, carbohydrates_g, fat_g, meal_type, logged_at, created_at, food_id, profile_id, food_image_id")
+            .eq("user_id", user["id"])
+            .eq("food_name", food_name_clean)
+            .gte("created_at", recent_cutoff)
+            .execute()
+        )
+        if recent.data and len(recent.data) > 0:
+            logger.info(f"Rapid duplicate submission prevented for {food_name_clean}. Returning existing log.")
+            saved_row = recent.data[0]
+            log_obj = FoodLogResponse.model_validate(saved_row)
+            daily_summary = fetch_and_calculate_daily_dashboard(
+                client=client,
+                user_id=user["id"],
+                target_date=log_time[:10] if len(log_time) >= 10 else None
+            )
+            return SingleFoodLogResponse(
+                success=True,
+                saved_log=log_obj,
+                food_log=log_obj,
+                daily_summary=daily_summary,
+                message=f"Duplicate submission prevented: {food_name_clean} was already logged."
+            )
+    except Exception as dup_err:
+        logger.debug(f"Single food duplicate check notice: {dup_err}")
 
     record = {
         "user_id": user["id"],
-        "food_name": payload.food_name,
+        "food_name": food_name_clean,
         "quantity": payload.quantity,
         "unit": payload.unit,
         "estimated_calories": payload.estimated_calories,
@@ -281,19 +344,32 @@ async def create_food_log(
         raise HTTPException(status_code=400, detail="Failed to save food log entry.")
 
     saved_row = res.data[0]
+    log_obj = FoodLogResponse.model_validate(saved_row)
 
     try:
         UserPreferenceLearningEngine.record_confirmed_log(
             client=client,
             user_id=user["id"],
-            food_name=payload.food_name,
+            food_name=food_name_clean,
             quantity=payload.quantity,
             serving_unit=payload.unit
         )
     except Exception:
         pass
 
-    return saved_row
+    daily_summary = fetch_and_calculate_daily_dashboard(
+        client=client,
+        user_id=user["id"],
+        target_date=log_time[:10] if len(log_time) >= 10 else None
+    )
+
+    return SingleFoodLogResponse(
+        success=True,
+        saved_log=log_obj,
+        food_log=log_obj,
+        daily_summary=daily_summary,
+        message="Food log saved successfully"
+    )
 
 @router.put("/logs/{log_id}", response_model=FoodLogResponse)
 async def update_food_log(

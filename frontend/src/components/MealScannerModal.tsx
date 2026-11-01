@@ -8,6 +8,7 @@ import {
   MealImageAnalysisResponse,
   FoodLogItem,
   ConfirmedFoodItem,
+  DashboardSummary,
 } from "@/types";
 import {
   Camera,
@@ -33,7 +34,7 @@ import {
 interface MealScannerModalProps {
   initialMealType?: MealType;
   onClose: () => void;
-  onSuccess: (newItem: FoodLogItem) => void;
+  onSuccess: (newItem: FoodLogItem, dailySummary?: DashboardSummary | null) => void;
 }
 
 interface EditableItem {
@@ -326,7 +327,13 @@ export default function MealScannerModal({
     const currentItem = updatedItems.find((it) => it.id === id);
     if (!currentItem || currentItem.quantity <= 0) return;
 
-    // Authoritative deterministic recalculation without calling AI vision model
+    // For quantity or weight changes, the local proportional math is authoritative
+    // and avoids redundant server round-trips
+    if (field === "quantity" || field === "estimated_weight_g") {
+      return;
+    }
+
+    // Authoritative deterministic recalculation for changed dish name or preparation method
     setRecalculatingId(id);
     try {
       const recalculated = await api.recalculateItem({
@@ -489,9 +496,9 @@ export default function MealScannerModal({
       });
 
       if (res.saved_logs && res.saved_logs.length > 0) {
-        onSuccess(res.saved_logs[0]);
+        onSuccess(res.saved_logs[0], res.daily_summary);
       } else {
-        onSuccess({} as any);
+        onSuccess({} as any, res.daily_summary);
       }
       onClose();
     } catch (err: any) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
@@ -61,9 +61,28 @@ export default function DashboardHomePage() {
     setSelectedDate(`${year}-${month}-${day}`);
   };
 
-  const loadData = useCallback(async () => {
+  // Keep profile in ref to reuse across food logging and avoid unnecessary network round trips
+  const profileRef = useRef<UserProfile | null>(null);
+  profileRef.current = profile;
+
+  // Background dashboard refresh that never flashes the full-screen loader
+  const refreshDashboard = useCallback(async () => {
     try {
-      setLoading(true);
+      const dashboardData = await api.getDashboard(selectedDate);
+      if (dashboardData) {
+        setDashboard(dashboardData);
+      }
+    } catch (err: any) {
+      console.warn("Could not refresh dashboard in background:", err);
+    }
+  }, [selectedDate]);
+
+  const loadData = useCallback(async (isInitial: boolean = false) => {
+    try {
+      // Only show full-screen loader on initial mount when dashboard is not yet loaded
+      if (isInitial) {
+        setLoading(true);
+      }
       setError(null);
 
       // Verify session
@@ -73,20 +92,26 @@ export default function DashboardHomePage() {
         return;
       }
 
-      // Fetch profile and dashboard concurrently
+      // Reuse already-loaded profile to avoid unnecessary requests; fetch only if not yet loaded
+      const profilePromise = profileRef.current
+        ? Promise.resolve(profileRef.current)
+        : api.getProfile().catch((err) => {
+            console.warn("Could not load profile:", err);
+            return null;
+          });
+
+      const dashboardPromise = api.getDashboard(selectedDate).catch((err) => {
+        console.warn("Could not load dashboard:", err);
+        return null;
+      });
+
       const [profileData, dashboardData] = await Promise.all([
-        api.getProfile().catch((err) => {
-          console.warn("Could not load profile:", err);
-          return null;
-        }),
-        api.getDashboard(selectedDate).catch((err) => {
-          console.warn("Could not load dashboard:", err);
-          return null;
-        }),
+        profilePromise,
+        dashboardPromise,
       ]);
 
-      setProfile(profileData);
-      setDashboard(dashboardData);
+      if (profileData) setProfile(profileData);
+      if (dashboardData) setDashboard(dashboardData);
     } catch (err: any) {
       setError(err.message || "Failed to load dashboard data.");
     } finally {
@@ -95,7 +120,7 @@ export default function DashboardHomePage() {
   }, [router, selectedDate]);
 
   useEffect(() => {
-    loadData();
+    loadData(!dashboard);
   }, [loadData]);
 
   const handleOpenAddFood = (mealType: MealType = "breakfast") => {
@@ -108,15 +133,21 @@ export default function DashboardHomePage() {
     setIsScanMealOpen(true);
   };
 
-  const handleFoodSaved = async (newItem: FoodLogItem) => {
-    // Reload dashboard to keep all calculations exact
-    await loadData();
+  const handleFoodSaved = (newItem?: FoodLogItem, dailySummary?: DashboardSummary | null) => {
+    if (dailySummary) {
+      // Direct in-memory state update using verified server aggregation - 0ms delay, 0 network calls!
+      setDashboard(dailySummary);
+      return;
+    }
+
+    // Fallback: refresh in background without full-screen loading spinner
+    refreshDashboard();
   };
 
   const handleDeleteFood = async (id: string) => {
     try {
       await api.deleteFoodLog(id);
-      await loadData();
+      await refreshDashboard();
     } catch (err: any) {
       alert("Failed to delete food entry: " + err.message);
     }
