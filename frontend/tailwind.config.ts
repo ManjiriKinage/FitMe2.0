@@ -10,13 +10,13 @@ const config: Config = {
     extend: {
       colors: {
         sage: {
-          DEFAULT: "#789879",
+          DEFAULT: "#7c9a7e",
           50: "#F4F7F4",
           100: "#E6EDE7",
           200: "#CCDBCF",
           300: "#ADC4B1",
           400: "#8FAEA4",
-          500: "#789879",
+          500: "#7c9a7e",
           600: "#5F7C60",
           700: "#49604A",
           800: "#364737",
@@ -28,16 +28,19 @@ const config: Config = {
           dark: "#C3E2C7",
         },
         cream: {
-          DEFAULT: "#FAF9F4",
+          DEFAULT: "#faf9f6",
           soft: "#F5F3EC",
           pure: "#FFFFFF",
         },
         charcoal: {
-          DEFAULT: "#26352D",
-          light: "#34453C",
-          dark: "#1B2620",
+          DEFAULT: "#22332d",
+          light: "#2d4238",
+          dark: "#182420",
           900: "#131C17",
         },
+        muted: "#5b6b64",
+        softBorder: "#dfe6e1",
+        pillBg: "#eaf1ec",
         accent: {
           yellow: "#FDE68A",
           yellowText: "#92400E",

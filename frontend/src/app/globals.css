@@ -5,12 +5,15 @@
 @tailwind utilities;
 
 :root {
-  --color-sage: #789879;
+  --color-sage: #7c9a7e;
   --color-mint: #E5F2E7;
-  --color-cream: #FAF9F4;
-  --color-charcoal: #26352D;
+  --color-cream: #faf9f6;
+  --color-charcoal: #22332d;
+  --color-muted: #5b6b64;
+  --color-border: #dfe6e1;
+  --color-pill: #eaf1ec;
   --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
-  --font-display: 'Outfit', system-ui, sans-serif;
+  --font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
 body {

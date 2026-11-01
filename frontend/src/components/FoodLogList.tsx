@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { FoodLogItem, MealType } from "@/types";
-import { ChevronDown, ChevronUp, Trash2, Plus, Camera, Coffee, Sun, Sunset, Cookie } from "lucide-react";
+import { Camera, Plus, Trash2 } from "lucide-react";
 
 interface FoodLogListProps {
   meals: Record<MealType, FoodLogItem[]>;
@@ -19,54 +19,53 @@ export default function FoodLogList({
   onOpenScanMeal,
   onDeleteFood,
 }: FoodLogListProps) {
-  const [expandedMeal, setExpandedMeal] = useState<MealType | null>("lunch");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const mealConfigs: {
     key: MealType;
     label: string;
-    icon: any;
     bgColor: string;
     borderColor: string;
-    badgeColor: string;
+    badgeBg: string;
+    logButtonText: string;
   }[] = [
     {
       key: "breakfast",
       label: "Breakfast",
-      icon: Coffee,
-      bgColor: "bg-sky-50/80 hover:bg-sky-50",
-      borderColor: "border-sky-200/60",
-      badgeColor: "text-sky-800 bg-sky-100",
+      bgColor: "bg-[#eaf4fd]",
+      borderColor: "border-[#cfe5f7]",
+      badgeBg: "bg-[#d2e8f9]",
+      logButtonText: "Log breakfast",
     },
     {
       key: "lunch",
       label: "Lunch",
-      icon: Sun,
-      bgColor: "bg-lime-50/80 hover:bg-lime-50",
-      borderColor: "border-lime-200/60",
-      badgeColor: "text-lime-900 bg-lime-100",
+      bgColor: "bg-[#f0f9e4]",
+      borderColor: "border-[#dcefc4]",
+      badgeBg: "bg-[#dcefc4]",
+      logButtonText: "Log lunch",
     },
     {
       key: "dinner",
       label: "Dinner",
-      icon: Sunset,
-      bgColor: "bg-orange-50/70 hover:bg-orange-50",
-      borderColor: "border-orange-200/60",
-      badgeColor: "text-orange-900 bg-orange-100",
+      bgColor: "bg-[#fdf3ec]",
+      borderColor: "border-[#f6e0d0]",
+      badgeBg: "bg-[#f6e0d0]",
+      logButtonText: "Log dinner",
     },
     {
       key: "snack",
       label: "Snacks",
-      icon: Cookie,
-      bgColor: "bg-amber-50/70 hover:bg-amber-50",
-      borderColor: "border-amber-200/60",
-      badgeColor: "text-amber-900 bg-amber-100",
+      bgColor: "bg-[#fef9e5]",
+      borderColor: "border-[#f5ebbf]",
+      badgeBg: "bg-[#f5ebbf]",
+      logButtonText: "Log snack",
     },
   ];
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("Are you sure you want to remove this food item?")) return;
+    if (!confirm("Are you sure you want to remove this food entry?")) return;
     setDeletingId(id);
     try {
       await onDeleteFood(id);
@@ -76,163 +75,153 @@ export default function FoodLogList({
   };
 
   return (
-    <div className="bg-white rounded-3xl p-4 sm:p-5 border border-mint shadow-soft flex flex-col justify-between">
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-extrabold text-base text-charcoal tracking-tight">Daily Calories</h3>
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-cream text-charcoal/70 border border-charcoal/5">
-            Meals Breakdown
-          </span>
-        </div>
+    <article
+      aria-label="Daily Calories and Meals Breakdown"
+      className="bg-white rounded-[24px] p-6 shadow-[0_1px_3px_rgba(34,51,45,0.06)] border border-[#dfe6e1]/40 flex flex-col gap-3"
+    >
+      {/* Header */}
+      <div className="flex justify-between items-center mb-1">
+        <h2 className="text-[18px] font-bold text-[#22332d] m-0">Daily Calories</h2>
+        <span className="bg-[#faf7f0] border border-[#eeeeee] rounded-full px-3 py-1 text-xs text-[#22332d] font-semibold">
+          Meals Breakdown
+        </span>
+      </div>
 
-        {/* Meal cards stack */}
-        <div className="space-y-2.5">
-          {mealConfigs.map(({ key, label, icon: Icon, bgColor, borderColor, badgeColor }) => {
-            const items = meals[key] || [];
-            const mealCalories = Math.round(items.reduce((acc, curr) => acc + curr.estimated_calories, 0));
-            const isExpanded = expandedMeal === key;
+      {/* 4 Meal Cards */}
+      <div className="flex flex-col gap-3">
+        {mealConfigs.map(({ key, label, bgColor, borderColor, badgeBg, logButtonText }) => {
+          const items = meals[key] || [];
+          const mealCalories = Math.round(
+            items.reduce((acc, curr) => acc + (curr.estimated_calories || 0), 0)
+          );
+          const hasItems = items.length > 0;
+          const summaryDescription = hasItems
+            ? items.map((i) => i.food_name).join(", ")
+            : "No foods logged yet";
 
-            const summaryDescription =
-              items.length > 0
-                ? items.map((i) => i.food_name).join(", ")
-                : "No foods logged yet";
-
-            return (
-              <div
-                key={key}
-                className={`rounded-2xl border transition-all overflow-hidden ${bgColor} ${borderColor}`}
-              >
-                {/* Header Row */}
-                <div
-                  onClick={() => setExpandedMeal(isExpanded ? null : key)}
-                  className="p-3 sm:p-3.5 flex items-center justify-between cursor-pointer select-none"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0 pr-3">
-                    <div className="w-8 h-8 rounded-xl bg-white/90 flex items-center justify-center text-charcoal shadow-sm flex-shrink-0">
-                      <Icon className="w-4 h-4 text-charcoal" />
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="font-bold text-sm sm:text-base text-charcoal flex items-center gap-2">
-                        {label}
-                        {items.length > 0 && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeColor}`}>
-                            {items.length} {items.length === 1 ? "item" : "items"}
-                          </span>
-                        )}
-                      </h4>
-                      <p className="text-xs text-charcoal/60 truncate max-w-xs sm:max-w-md">
-                        {summaryDescription}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
-                    <span className="font-extrabold text-sm sm:text-base text-charcoal">
-                      {mealCalories} <span className="text-xs font-medium text-charcoal/60">Kcal</span>
-                    </span>
-                    {onOpenScanMeal && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenScanMeal(key);
-                        }}
-                        title={`Scan plate for ${label}`}
-                        className="w-8 h-8 rounded-xl bg-white/90 hover:bg-white text-charcoal/70 hover:text-sage flex items-center justify-center shadow-sm transition hover:scale-105"
+          return (
+            <div
+              key={key}
+              className={`rounded-[18px] p-4 sm:px-5 sm:py-4 border ${bgColor} ${borderColor} transition-all`}
+            >
+              {/* Meal Header Row */}
+              <div className="flex items-center gap-3 sm:gap-3.5">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <b className="text-[17px] font-bold text-[#22332d]">{label}</b>
+                    {hasItems && (
+                      <span
+                        className={`${badgeBg} rounded-full px-2.5 py-0.5 text-xs font-semibold text-[#22332d]`}
                       >
-                        <Camera className="w-3.5 h-3.5" />
-                      </button>
+                        {items.length} {items.length === 1 ? "item" : "items"}
+                      </span>
                     )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenAddFood(key);
-                      }}
-                      title={`Add typed food to ${label}`}
-                      className="w-8 h-8 rounded-xl bg-white/90 hover:bg-white text-charcoal flex items-center justify-center shadow-sm transition hover:scale-105"
-                    >
-                      <Plus className="w-4 h-4 text-sage-700" />
-                    </button>
-                    <div className="text-charcoal/40">
-                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </div>
+                  </div>
+                  <div className="text-[13px] text-[#5b6b64] truncate mt-0.5">
+                    {summaryDescription}
                   </div>
                 </div>
 
-                {/* Expanded Food Item List */}
-                {isExpanded && (
-                  <div className="px-4 pb-4 pt-1 space-y-2 border-t border-charcoal/5">
-                    {items.length === 0 ? (
-                      <div className="text-center py-4 text-xs text-charcoal/50 flex flex-col items-center gap-2">
-                        <p>No food logged for {label.toLowerCase()}.</p>
+                <b className="text-[20px] font-bold text-[#22332d] flex-shrink-0">
+                  {mealCalories} <span className="text-[13px] text-[#5b6b64] font-normal">Kcal</span>
+                </b>
+
+                {/* Action buttons */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {!hasItems ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => onOpenAddFood(key)}
+                        className="h-10 px-4 rounded-full border border-[#e6ebe7] bg-white hover:bg-[#f6f9f7] text-[#22332d] font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]"
+                      >
+                        {logButtonText}
+                      </button>
+                      {onOpenScanMeal && (
                         <button
-                          onClick={() => onOpenAddFood(key)}
-                          className="px-3 py-1.5 rounded-xl bg-white text-charcoal text-xs font-bold border border-charcoal/10 hover:border-sage transition shadow-sm inline-flex items-center gap-1.5"
+                          type="button"
+                          onClick={() => onOpenScanMeal(key)}
+                          aria-label={`Scan ${label}`}
+                          className="w-10 h-10 rounded-full border border-[#e6ebe7] bg-white hover:bg-[#f6f9f7] text-[#22332d] flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]"
                         >
-                          <Plus className="w-3.5 h-3.5 text-sage" />
-                          Log {label}
+                          <Camera className="w-4 h-4" aria-hidden="true" />
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {onOpenScanMeal && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenScanMeal(key)}
+                          aria-label={`Scan ${label}`}
+                          className="w-10 h-10 rounded-full border border-[#e6ebe7] bg-white hover:bg-[#f6f9f7] text-[#22332d] flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]"
+                        >
+                          <Camera className="w-4 h-4" aria-hidden="true" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => onOpenAddFood(key)}
+                        aria-label={`Add food to ${label}`}
+                        className="w-10 h-10 rounded-full border border-[#e6ebe7] bg-white hover:bg-[#f6f9f7] text-[#22332d] flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]"
+                      >
+                        <Plus className="w-4 h-4" aria-hidden="true" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Nested Food Items */}
+              {hasItems && (
+                <div className="mt-2.5 flex flex-col gap-2">
+                  {items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="bg-white rounded-[14px] px-4 py-3 flex justify-between items-center shadow-sm border border-[#e6ebe7]/60"
+                    >
+                      <div className="min-w-0 pr-3">
+                        <b className="text-[15px] font-bold text-[#22332d] block truncate">
+                          {item.food_name}
+                        </b>
+                        <div className="text-[13px] text-[#5b6b64] mt-0.5">
+                          {item.quantity} {item.unit} · P: {Number(item.protein_g).toFixed(1)}g · C:{" "}
+                          {Number(item.carbohydrates_g).toFixed(1)}g · F:{" "}
+                          {Number(item.fat_g).toFixed(1)}g
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <b className="text-[15px] font-bold text-[#22332d]">
+                          {Math.round(item.estimated_calories)} kcal
+                        </b>
+                        <button
+                          type="button"
+                          onClick={(e) => handleDelete(item.id, e)}
+                          disabled={deletingId === item.id}
+                          aria-label={`Delete ${item.food_name}`}
+                          className="w-8 h-8 rounded-full border-0 text-[#5b6b64] hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors focus:outline-none focus:ring-1 focus:ring-red-400"
+                        >
+                          <Trash2 className="w-4 h-4" aria-hidden="true" />
                         </button>
                       </div>
-                    ) : (
-                      items.map((item) => (
-                        <div
-                          key={item.id}
-                          className="bg-white/95 rounded-2xl p-3 flex items-center justify-between shadow-sm text-xs border border-charcoal/5"
-                        >
-                          <div className="min-w-0 pr-2">
-                            <span className="font-bold text-charcoal block truncate">
-                              {item.food_name}
-                            </span>
-                            <span className="text-[11px] text-charcoal/60">
-                              {item.quantity} {item.unit} • P: {item.protein_g}g • C: {item.carbohydrates_g}g • F: {item.fat_g}g
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-3 flex-shrink-0">
-                            <span className="font-extrabold text-charcoal text-xs">
-                              {Math.round(item.estimated_calories)} kcal
-                            </span>
-                            <button
-                              onClick={(e) => handleDelete(item.id, e)}
-                              disabled={deletingId === item.id}
-                              title="Delete food item"
-                              className="p-1.5 text-charcoal/40 hover:text-red-500 rounded-lg hover:bg-red-50 transition"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Footer bar with Remaining Calories and prominent + button */}
-      <div className="mt-6 pt-5 border-t border-charcoal/5 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs font-semibold text-charcoal/70">
-          <span>Remaining:</span>
-          <div className="flex gap-1 items-center">
-            <span className="w-5 h-1.5 rounded-full bg-amber-400" />
-            <span className="w-5 h-1.5 rounded-full bg-sky-400" />
-            <span className="w-5 h-1.5 rounded-full bg-emerald-400" />
-          </div>
-          <span className="font-extrabold text-charcoal text-sm ml-1">
-            {Math.round(remainingCalories)} Kcal
-          </span>
-        </div>
-
-        <button
-          onClick={() => onOpenAddFood()}
-          title="Add Food Entry"
-          className="w-11 h-11 rounded-2xl bg-charcoal text-cream hover:bg-charcoal-light flex items-center justify-center transition shadow-soft hover:scale-105 active:scale-95"
-        >
-          <Plus className="w-6 h-6 text-cream" />
-        </button>
+      {/* Remaining Calories Footer */}
+      <div className="border-t border-[#eef1ee] pt-3.5 flex items-center gap-2.5 text-[14px]">
+        <span className="text-[13px] text-[#5b6b64]">Remaining:</span>
+        <b className="text-[18px] font-bold text-[#22332d]">
+          {Math.max(0, Math.round(remainingCalories))} Kcal
+        </b>
       </div>
-    </div>
+    </article>
   );
 }
