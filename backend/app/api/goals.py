@@ -18,7 +18,47 @@ async def get_current_goals(user: Dict[str, Any] = Depends(get_current_user)):
 
     res = client.table("profiles").select("*").eq("id", user["id"]).execute()
     if not res.data or len(res.data) == 0:
-        raise HTTPException(status_code=404, detail="Profile not found.")
+        # Create default profile if not exists
+        full_name = (
+            (user.get("user_metadata") or {}).get("full_name")
+            or user.get("email", "").split("@")[0].capitalize()
+            or "FitMe User"
+        )
+        calc_input = CalorieCalculationInput(
+            age=25,
+            gender="female",
+            height_cm=170.0,
+            current_weight_kg=70.0,
+            activity_level="moderately_active",
+            fitness_goal="lose_weight",
+            pace="steady",
+            target_weight_kg=65.0
+        )
+        details = calculate_calories(calc_input)
+        default_profile = {
+            "id": user["id"],
+            "full_name": full_name,
+            "age": 25,
+            "gender": "female",
+            "height_cm": 170.0,
+            "current_weight_kg": 70.0,
+            "activity_level": "moderately_active",
+            "fitness_goal": "lose_weight",
+            "pace": "steady",
+            "target_weight_kg": 65.0,
+            "daily_calorie_target": details.daily_calorie_target,
+            "bmr": details.bmr,
+            "tdee": details.tdee,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        try:
+            insert_res = client.table("profiles").upsert(default_profile).execute()
+            if insert_res.data and len(insert_res.data) > 0:
+                return {"profile": insert_res.data[0], "calculation_details": details}
+        except Exception as e:
+            print("Auto-create profile in goals note:", e)
+        return {"profile": default_profile, "calculation_details": details}
 
     profile = res.data[0]
     # Calculate detailed explanation of current target
@@ -54,9 +94,32 @@ async def update_goals_and_recalculate(
 
     res = client.table("profiles").select("*").eq("id", user["id"]).execute()
     if not res.data or len(res.data) == 0:
-        raise HTTPException(status_code=404, detail="Profile not found.")
-
-    curr = res.data[0]
+        full_name = (
+            (user.get("user_metadata") or {}).get("full_name")
+            or user.get("email", "").split("@")[0].capitalize()
+            or "FitMe User"
+        )
+        curr = {
+            "id": user["id"],
+            "full_name": full_name,
+            "age": 25,
+            "gender": "female",
+            "height_cm": 170.0,
+            "current_weight_kg": 70.0,
+            "activity_level": "moderately_active",
+            "fitness_goal": "lose_weight",
+            "pace": "steady",
+            "target_weight_kg": 65.0,
+            "daily_calorie_target": 1739,
+            "bmr": 1477,
+            "tdee": 2289,
+        }
+        try:
+            client.table("profiles").upsert(curr).execute()
+        except Exception:
+            pass
+    else:
+        curr = res.data[0]
     previous_target = int(curr.get("daily_calorie_target") or 0)
 
     new_weight = payload.current_weight_kg if payload.current_weight_kg is not None else float(curr["current_weight_kg"])

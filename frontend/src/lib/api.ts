@@ -294,5 +294,74 @@ export const api = {
       method: "DELETE",
     });
   },
+
+  // Water Tracker
+  getWaterLog: async (date?: string): Promise<{ logged_on: string; cups: number; water_goal: number }> => {
+    const params = date ? `?date=${encodeURIComponent(date)}` : "";
+    return fetchWithAuth<{ logged_on: string; cups: number; water_goal: number }>(`/api/water${params}`);
+  },
+
+  updateWaterLog: async (cups: number, date?: string): Promise<{ logged_on: string; cups: number; water_goal: number }> => {
+    return fetchWithAuth<{ logged_on: string; cups: number; water_goal: number }>("/api/water", {
+      method: "PUT",
+      body: JSON.stringify({ cups, logged_on: date }),
+    });
+  },
+
+  // Quick Add: Favorites and Recents
+  getFavorites: async (): Promise<any[]> => {
+    return fetchWithAuth<any[]>("/api/food/favorites");
+  },
+
+  addFavorite: async (data: {
+    name: string;
+    quantity: number;
+    unit: string;
+    calories: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+  }): Promise<any> => {
+    return fetchWithAuth<any>("/api/food/favorites", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteFavorite: async (id: string): Promise<{ status: string; id: string }> => {
+    return fetchWithAuth<{ status: string; id: string }>(`/api/food/favorites/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+  },
+
+  getRecentFoods: async (): Promise<any[]> => {
+    return fetchWithAuth<any[]>("/api/food/recents");
+  },
+
+  // AI Meal Suggestion
+  getAISuggestion: async (refresh: boolean = false): Promise<any> => {
+    const params = refresh ? "?refresh=true" : "";
+    return fetchWithAuth<any>(`/api/meals/ai-suggestion${params}`);
+  },
+
+  // Progress Tracking & Weight Logs
+  getProgressData: async (): Promise<{
+    profile: any;
+    weight_logs: Array<{ id: string; logged_on: string; weight_kg: number }>;
+    calorie_trend: Array<{ date: string; calories: number; protein: number }>;
+  }> => {
+    return fetchWithAuth<{
+      profile: any;
+      weight_logs: Array<{ id: string; logged_on: string; weight_kg: number }>;
+      calorie_trend: Array<{ date: string; calories: number; protein: number }>;
+    }>("/api/progress");
+  },
+
+  logWeight: async (weight_kg: number, logged_on?: string): Promise<{ weight_log: any; profile: any }> => {
+    return fetchWithAuth<{ weight_log: any; profile: any }>("/api/progress/weight", {
+      method: "POST",
+      body: JSON.stringify({ weight_kg, logged_on }),
+    });
+  },
 };
 

@@ -97,8 +97,8 @@ async def estimate_food_calories(query: str) -> AIEstimateResponse:
         logger.info("No Gemini API key configured. Utilizing local nutrition knowledge base.")
         return heuristic_estimate(query)
 
-    # Try Gemini API via REST
-    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={settings.GEMINI_API_KEY}"
+    # Try Gemini API via REST with official model fallback
+    models_to_try = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
     
     payload = {
         "contents": [
@@ -114,32 +114,33 @@ async def estimate_food_calories(query: str) -> AIEstimateResponse:
         }
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(api_url, json=payload)
-            if resp.status_code == 200:
-                data = resp.json()
-                text_content = data["candidates"][0]["content"]["parts"][0]["text"]
-                # Clean any markdown tags if present
-                clean_json = re.sub(r"^```json\s*", "", text_content.strip())
-                clean_json = re.sub(r"\s*```$", "", clean_json)
-                parsed = json.loads(clean_json)
+    for model_name in models_to_try:
+        api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={settings.GEMINI_API_KEY}"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(api_url, json=payload)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    text_content = data["candidates"][0]["content"]["parts"][0]["text"]
+                    clean_json = re.sub(r"^```json\s*", "", text_content.strip())
+                    clean_json = re.sub(r"\s*```$", "", clean_json)
+                    parsed = json.loads(clean_json)
 
-                return AIEstimateResponse(
-                    food_name=parsed.get("food_name", query.strip().title()),
-                    quantity=float(parsed.get("quantity", 1.0)),
-                    unit=str(parsed.get("unit", "serving")),
-                    estimated_calories=float(parsed.get("estimated_calories", 0.0)),
-                    protein_g=float(parsed.get("protein_g", 0.0)),
-                    carbohydrates_g=float(parsed.get("carbohydrates_g", 0.0)),
-                    fat_g=float(parsed.get("fat_g", 0.0)),
-                    assumptions=str(parsed.get("assumptions", "Standard portion")),
-                    uncertainty_note=parsed.get("uncertainty_note"),
-                    clarification_question=parsed.get("clarification_question")
-                )
-            else:
-                logger.warning(f"Gemini API returned status {resp.status_code}: {resp.text}")
-                return heuristic_estimate(query)
-    except Exception as exc:
-        logger.error(f"Error calling Gemini API: {exc}")
-        return heuristic_estimate(query)
+                    return AIEstimateResponse(
+                        food_name=parsed.get("food_name", query.strip().title()),
+                        quantity=float(parsed.get("quantity", 1.0)),
+                        unit=str(parsed.get("unit", "serving")),
+                        estimated_calories=float(parsed.get("estimated_calories", 0.0)),
+                        protein_g=float(parsed.get("protein_g", 0.0)),
+                        carbohydrates_g=float(parsed.get("carbohydrates_g", 0.0)),
+                        fat_g=float(parsed.get("fat_g", 0.0)),
+                        assumptions=str(parsed.get("assumptions", "Standard portion")),
+                        uncertainty_note=parsed.get("uncertainty_note"),
+                        clarification_question=parsed.get("clarification_question")
+                    )
+                else:
+                    logger.warning(f"Gemini API model {model_name} returned status {resp.status_code}: {resp.text}")
+        except Exception as exc:
+            logger.error(f"Error calling Gemini API on {model_name}: {exc}")
+
+    return heuristic_estimate(query)

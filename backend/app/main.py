@@ -1,6 +1,7 @@
 """FitMe Backend API - FastAPI Application."""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from app.core.config import settings
 from app.api import (
     auth_router,
@@ -8,7 +9,9 @@ from app.api import (
     goals_router,
     food_router,
     dashboard_router,
-    meals_router
+    meals_router,
+    water_router,
+    progress_router,
 )
 
 app = FastAPI(
@@ -16,6 +19,9 @@ app = FastAPI(
     description="AI-Powered Personalized Calorie Tracker Backend",
     version="1.0.0"
 )
+
+# Enable GZip compression for responses > 1KB
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 import logging
 from fastapi.responses import JSONResponse
@@ -59,6 +65,8 @@ app.include_router(goals_router, prefix="/api")
 app.include_router(food_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(meals_router, prefix="/api")
+app.include_router(water_router, prefix="/api")
+app.include_router(progress_router, prefix="/api")
 
 @app.get("/health", tags=["System"])
 async def health_check():

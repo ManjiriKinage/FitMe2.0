@@ -9,6 +9,7 @@ import Navbar from "@/components/Navbar";
 import CaloriesAndMacrosCard from "@/components/dashboard/CaloriesAndMacrosCard";
 import MetabolicOverviewCard from "@/components/dashboard/MetabolicOverviewCard";
 import HydrationCard from "@/components/dashboard/HydrationCard";
+import AISuggestionCard from "@/components/dashboard/AISuggestionCard";
 import FoodLogList from "@/components/FoodLogList";
 import FoodLogForm from "@/components/FoodLogForm";
 import MealScannerModal from "@/components/MealScannerModal";
@@ -21,23 +22,43 @@ import {
   Loader2,
 } from "lucide-react";
 
+// Helpers for instantaneous Stale-While-Revalidate (SWR) cache
+const getCachedDashboard = (date: string): DashboardSummary | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(`fitme_dash_${date}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const setCachedDashboard = (date: string, data: DashboardSummary) => {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(`fitme_dash_${date}`, JSON.stringify(data));
+  } catch {}
+};
+
+const getCachedProfile = (): UserProfile | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem("fitme_profile");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const setCachedProfile = (data: UserProfile) => {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem("fitme_profile", JSON.stringify(data));
+  } catch {}
+};
+
 export default function DashboardHomePage() {
   const router = useRouter();
-
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
-
-  // Search filter query
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // Modal State
-  const [isAddFoodOpen, setIsAddFoodOpen] = useState(false);
-  const [selectedMealForAdd, setSelectedMealForAdd] = useState<MealType>("breakfast");
-
-  const [isScanMealOpen, setIsScanMealOpen] = useState(false);
-  const [selectedMealForScan, setSelectedMealForScan] = useState<MealType>("lunch");
 
   // Date selection (defaults to today in local timezone YYYY-MM-DD)
   const getTodayStr = () => {
@@ -48,8 +69,24 @@ export default function DashboardHomePage() {
     return `${year}-${month}-${day}`;
   };
 
-  const [selectedDate, setSelectedDate] = useState<string>(getTodayStr());
   const todayStr = getTodayStr();
+  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+
+  // Initialize with cached data for instant 0ms render
+  const [profile, setProfile] = useState<UserProfile | null>(() => getCachedProfile());
+  const [dashboard, setDashboard] = useState<DashboardSummary | null>(() => getCachedDashboard(todayStr));
+  const [loading, setLoading] = useState<boolean>(() => !getCachedDashboard(todayStr));
+  const [error, setError] = useState<string | null>(null);
+
+  // Search filter query
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Modal State
+  const [isAddFoodOpen, setIsAddFoodOpen] = useState(false);
+  const [selectedMealForAdd, setSelectedMealForAdd] = useState<MealType>("breakfast");
+
+  const [isScanMealOpen, setIsScanMealOpen] = useState(false);
+  const [selectedMealForScan, setSelectedMealForScan] = useState<MealType>("lunch");
 
   // Future dates strictly disallowed (only today and past allowed)
   const isTodayOrFuture = selectedDate >= todayStr;
@@ -80,6 +117,7 @@ export default function DashboardHomePage() {
       const dashboardData = await api.getDashboard(selectedDate);
       if (dashboardData) {
         setDashboard(dashboardData);
+        setCachedDashboard(selectedDate, dashboardData);
       }
     } catch (err: any) {
       console.warn("Could not refresh dashboard in background:", err);
@@ -119,8 +157,14 @@ export default function DashboardHomePage() {
         dashboardPromise,
       ]);
 
-      if (profileData) setProfile(profileData);
-      if (dashboardData) setDashboard(dashboardData);
+      if (profileData) {
+        setProfile(profileData);
+        setCachedProfile(profileData);
+      }
+      if (dashboardData) {
+        setDashboard(dashboardData);
+        setCachedDashboard(selectedDate, dashboardData);
+      }
     } catch (err: any) {
       setError(err.message || "Failed to load dashboard data.");
     } finally {
@@ -129,14 +173,22 @@ export default function DashboardHomePage() {
   }, [router, selectedDate]);
 
   useEffect(() => {
-    loadData(!dashboard);
+    const cached = getCachedDashboard(selectedDate);
+    if (cached) {
+      setDashboard(cached);
+      setLoading(false);
+      // Quiet background revalidation
+      loadData(false);
+    } else {
+      loadData(true);
+    }
 
     const handleGoalsUpdated = () => {
       loadData(false);
     };
     window.addEventListener("fitme_goals_updated", handleGoalsUpdated);
     return () => window.removeEventListener("fitme_goals_updated", handleGoalsUpdated);
-  }, [loadData, dashboard]);
+  }, [loadData, selectedDate]);
 
   const handleOpenAddFood = (mealType: MealType = "breakfast") => {
     setSelectedMealForAdd(mealType);
@@ -152,6 +204,7 @@ export default function DashboardHomePage() {
     if (dailySummary) {
       // Direct in-memory state update using verified server aggregation
       setDashboard(dailySummary);
+      setCachedDashboard(selectedDate, dailySummary);
       return;
     }
     // Fallback: refresh in background without full-screen loading spinner
@@ -362,17 +415,22 @@ export default function DashboardHomePage() {
           <MetabolicOverviewCard profile={effectiveProfile} />
         </section>
 
-        {/* Bottom Grid Row: Daily Calories Meals Breakdown (1.6fr) + Hydration (1fr) */}
+        {/* Bottom Grid Row: Daily Calories Meals Breakdown (1.6fr) + Hydration & AI Suggestion (1fr) */}
         <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-6 items-start">
           <FoodLogList
             meals={filteredMeals}
             remainingCalories={remaining}
+            selectedDate={selectedDate}
             onOpenAddFood={handleOpenAddFood}
             onOpenScanMeal={handleOpenScanMeal}
             onDeleteFood={handleDeleteFood}
+            onFoodLogged={() => refreshDashboard()}
           />
 
-          <HydrationCard selectedDate={selectedDate} />
+          <div className="flex flex-col gap-6">
+            <HydrationCard selectedDate={selectedDate} />
+            <AISuggestionCard onLogMealSuccess={handleFoodSaved} />
+          </div>
         </section>
       </main>
 

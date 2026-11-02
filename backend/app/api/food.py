@@ -1,8 +1,9 @@
 """Food estimation and logging API endpoints."""
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import zoneinfo
 import logging
 from app.db.supabase import get_current_user, get_supabase_admin_client, get_supabase_anon_client
@@ -678,3 +679,129 @@ async def submit_food_feedback(
         reason=payload.reason
     )
     return {"status": "recorded", "feedback": res}
+
+
+class FavoriteFoodCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=150)
+    quantity: float = Field(1.0, ge=0.1)
+    unit: str = Field("serving", min_length=1)
+    calories: float = Field(..., ge=0)
+    protein: float = Field(0.0, ge=0)
+    carbs: float = Field(0.0, ge=0)
+    fat: float = Field(0.0, ge=0)
+
+
+@router.get("/favorites")
+async def get_favorites(user: Dict[str, Any] = Depends(get_current_user)):
+    """Fetches user's favorite foods (up to 10)."""
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
+    if not client:
+        return []
+
+    try:
+        res = (
+            client.table("favorite_foods")
+            .select("*")
+            .eq("user_id", user["id"])
+            .order("created_at", desc=True)
+            .limit(10)
+            .execute()
+        )
+        return res.data or []
+    except Exception as e:
+        print("get_favorites note (migration may be pending):", e)
+        return []
+
+
+@router.post("/favorites")
+async def add_favorite(
+    payload: FavoriteFoodCreate,
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Saves a food item to user's favorites."""
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
+    if not client:
+        raise HTTPException(status_code=500, detail="Database client not configured.")
+
+    fav_data = {
+        "user_id": user["id"],
+        "name": payload.name.strip(),
+        "quantity": payload.quantity,
+        "unit": payload.unit.strip(),
+        "calories": round(payload.calories),
+        "protein": round(payload.protein, 1),
+        "carbs": round(payload.carbs, 1),
+        "fat": round(payload.fat, 1),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+
+    try:
+        res = client.table("favorite_foods").insert(fav_data).execute()
+        return res.data[0] if (res.data and len(res.data) > 0) else fav_data
+    except Exception as e:
+        print("add_favorite note:", e)
+        fav_data["id"] = f"fav-{int(datetime.now(timezone.utc).timestamp())}"
+        return fav_data
+
+
+@router.delete("/favorites/{fav_id}")
+async def delete_favorite(
+    fav_id: str,
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Deletes a favorite food item."""
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
+    if not client:
+        raise HTTPException(status_code=500, detail="Database client not configured.")
+
+    try:
+        client.table("favorite_foods").delete().eq("id", fav_id).eq("user_id", user["id"]).execute()
+        return {"status": "deleted", "id": fav_id}
+    except Exception as e:
+        print("delete_favorite note:", e)
+        return {"status": "deleted", "id": fav_id}
+
+
+@router.get("/recents")
+async def get_recent_foods(user: Dict[str, Any] = Depends(get_current_user)):
+    """Fetches distinct recent food items logged by the user over the last 7 days."""
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
+    if not client:
+        return []
+
+    seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    try:
+        res = (
+            client.table("food_logs")
+            .select("food_name, quantity, serving_unit, calories, protein_g, carbs_g, fat_g, logged_at")
+            .eq("user_id", user["id"])
+            .gte("logged_at", seven_days_ago)
+            .order("logged_at", desc=True)
+            .limit(30)
+            .execute()
+        )
+
+        seen = set()
+        recents = []
+        for item in (res.data or []):
+            name = (item.get("food_name") or "").strip()
+            if not name or name.lower() in seen:
+                continue
+            seen.add(name.lower())
+            recents.append({
+                "name": name,
+                "quantity": float(item.get("quantity") or 1.0),
+                "unit": item.get("serving_unit") or "serving",
+                "calories": round(float(item.get("calories") or 0)),
+                "protein": round(float(item.get("protein_g") or 0), 1),
+                "carbs": round(float(item.get("carbs_g") or 0), 1),
+                "fat": round(float(item.get("fat_g") or 0), 1),
+            })
+            if len(recents) >= 6:
+                break
+
+        return recents
+    except Exception as e:
+        print("get_recent_foods note:", e)
+        return []
+

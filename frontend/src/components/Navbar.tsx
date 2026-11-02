@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Home, Target, User, LogOut } from "lucide-react";
+import { Home, TrendingUp, Target, User, LogOut } from "lucide-react";
 
 interface NavbarProps {
   onOpenAddFood?: () => void;
@@ -26,7 +26,8 @@ export default function Navbar({ userFullName }: NavbarProps) {
 
   const navItems = [
     { href: "/home", label: "Home", icon: Home },
-    { href: "/goals", label: "Set Up Goals", icon: Target },
+    { href: "/progress", label: "Progress", icon: TrendingUp, badge: "1" },
+    { href: "/goals", label: "Set up goals", icon: Target },
     { href: "/profile", label: "Profile", icon: User },
   ];
 
@@ -71,14 +72,21 @@ export default function Navbar({ userFullName }: NavbarProps) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-[14px] text-[15px] font-medium transition-colors ${
+                className={`relative flex items-center justify-between px-4 py-3 rounded-[14px] text-[15px] font-medium transition-colors ${
                   isActive
                     ? "bg-[#7c9a7e] text-white"
                     : "text-[#dfe9e2] hover:bg-[#2d4238] hover:text-white"
                 }`}
               >
-                <Icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
-                <span>{item.label}</span>
+                <div className="flex items-center gap-3">
+                  <Icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+                  <span>{item.label}</span>
+                </div>
+                {item.badge && !isActive && (
+                  <span className="min-w-[20px] h-5 px-1 rounded-full bg-[#7c9a7e] text-white text-[11px] font-bold flex items-center justify-center border border-[#22332d]">
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             );
           })}

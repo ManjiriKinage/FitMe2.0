@@ -481,3 +481,69 @@ async def trigger_periodic_finetuning(
 
     return PeriodicFineTuningResponse(**run_result)
 
+
+from app.services.ai_suggestion_service import get_or_generate_suggestion
+
+@router.get("/ai-suggestion")
+async def get_ai_meal_suggestion(
+    refresh: bool = False,
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Computes remaining calories and protein from saved daily goal and today's logs,
+    and returns 1-2 Indian meal ideas high in protein fitting remaining calories.
+    Takes nothing from the client except the user session.
+    """
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
+    if not client:
+        raise HTTPException(status_code=500, detail="Database client not configured.")
+
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    current_hour = datetime.now().hour
+
+    # 1. Fetch profile daily calorie & protein target
+    daily_goal = 2000
+    protein_goal = 112
+    try:
+        p_res = client.table("profiles").select("*").eq("id", user["id"]).execute()
+        if p_res.data and len(p_res.data) > 0:
+            p = p_res.data[0]
+            if p.get("daily_calorie_target"):
+                daily_goal = int(p["daily_calorie_target"])
+            weight = float(p.get("current_weight_kg") or 70.0)
+            is_losing = (p.get("fitness_goal") or "lose_weight") in ["lose", "lose_weight"]
+            protein_goal = round(weight * (1.6 if is_losing else 1.2))
+    except Exception as e:
+        print("ai-suggestion profile fetch note:", e)
+
+    # 2. Fetch today's food logs
+    consumed_cals = 0.0
+    consumed_protein = 0.0
+    try:
+        f_res = (
+            client.table("food_logs")
+            .select("calories, protein_g, logged_at")
+            .eq("user_id", user["id"])
+            .gte("logged_at", f"{today_str}T00:00:00")
+            .lte("logged_at", f"{today_str}T23:59:59.999999")
+            .execute()
+        )
+        for row in (f_res.data or []):
+            consumed_cals += float(row.get("calories") or 0)
+            consumed_protein += float(row.get("protein_g") or 0)
+    except Exception as e:
+        print("ai-suggestion food_logs fetch note:", e)
+
+    remaining_cals = round(daily_goal - consumed_cals)
+    remaining_protein = round(protein_goal - consumed_protein)
+
+    suggestion_res = await get_or_generate_suggestion(
+        user_id=user["id"],
+        remaining_cals=remaining_cals,
+        remaining_protein=remaining_protein,
+        current_hour=current_hour,
+        force_refresh=refresh
+    )
+    return suggestion_res
+
+

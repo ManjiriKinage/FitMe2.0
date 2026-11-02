@@ -10,14 +10,54 @@ router = APIRouter(prefix="/profile", tags=["Profile"])
 
 @router.get("", response_model=ProfileResponse)
 async def get_profile(user: Dict[str, Any] = Depends(get_current_user)):
-    """Fetch the authenticated user's profile. Backfills targets once if missing."""
+    """Fetch the authenticated user's profile. Creates default profile if missing, or backfills targets once."""
     client = get_supabase_admin_client(user) or get_supabase_anon_client()
     if not client:
         raise HTTPException(status_code=500, detail="Database client not configured.")
 
     res = client.table("profiles").select("*").eq("id", user["id"]).execute()
     if not res.data or len(res.data) == 0:
-        raise HTTPException(status_code=404, detail="Profile not found. Please complete profile setup.")
+        # Profile doesn't exist yet: auto-create default profile for authenticated user
+        full_name = (
+            (user.get("user_metadata") or {}).get("full_name")
+            or user.get("email", "").split("@")[0].capitalize()
+            or "FitMe User"
+        )
+        calc_input = CalorieCalculationInput(
+            age=25,
+            gender="female",
+            height_cm=170.0,
+            current_weight_kg=70.0,
+            activity_level="moderately_active",
+            fitness_goal="lose_weight",
+            pace="steady",
+            target_weight_kg=65.0
+        )
+        rec = calculate_calories(calc_input)
+        default_profile = {
+            "id": user["id"],
+            "full_name": full_name,
+            "age": 25,
+            "gender": "female",
+            "height_cm": 170.0,
+            "current_weight_kg": 70.0,
+            "activity_level": "moderately_active",
+            "fitness_goal": "lose_weight",
+            "pace": "steady",
+            "target_weight_kg": 65.0,
+            "daily_calorie_target": rec.daily_calorie_target,
+            "bmr": rec.bmr,
+            "tdee": rec.tdee,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        try:
+            insert_res = client.table("profiles").upsert(default_profile).execute()
+            if insert_res.data and len(insert_res.data) > 0:
+                return insert_res.data[0]
+        except Exception as e:
+            print("Auto-create profile note:", e)
+        return default_profile
 
     profile = res.data[0]
     # Existing users with no saved or default values: calculate from profile on load and save once
@@ -105,30 +145,77 @@ async def update_profile(
     payload: ProfileUpdate,
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Updates general profile info."""
+    """Updates general profile info. If profile does not exist yet, creates/upserts it."""
     client = get_supabase_admin_client(user) or get_supabase_anon_client()
     if not client:
         raise HTTPException(status_code=500, detail="Database client not configured.")
 
     existing_res = client.table("profiles").select("*").eq("id", user["id"]).execute()
-    if not existing_res.data or len(existing_res.data) == 0:
-        raise HTTPException(status_code=404, detail="Profile not found.")
-
-    current = existing_res.data[0]
     update_dict = payload.model_dump(exclude_unset=True)
 
+    if not existing_res.data or len(existing_res.data) == 0:
+        # Profile doesn't exist yet: initialize with payload + sensible defaults
+        full_name = (
+            update_dict.get("full_name")
+            or (user.get("user_metadata") or {}).get("full_name")
+            or user.get("email", "").split("@")[0].capitalize()
+            or "FitMe User"
+        )
+        age = int(update_dict.get("age", 25))
+        gender = update_dict.get("gender", "female")
+        height_cm = float(update_dict.get("height_cm", 170.0))
+        current_weight_kg = float(update_dict.get("current_weight_kg", 70.0))
+        activity_level = update_dict.get("activity_level", "moderately_active")
+        fitness_goal = update_dict.get("fitness_goal", "lose_weight")
+        pace = update_dict.get("pace", "steady")
+        target_weight_kg = float(update_dict["target_weight_kg"]) if update_dict.get("target_weight_kg") else 65.0
+
+        calc_input = CalorieCalculationInput(
+            age=age,
+            gender=gender,
+            height_cm=height_cm,
+            current_weight_kg=current_weight_kg,
+            activity_level=activity_level,
+            fitness_goal=fitness_goal,
+            pace=pace,
+            target_weight_kg=target_weight_kg
+        )
+        rec = calculate_calories(calc_input)
+        new_profile = {
+            "id": user["id"],
+            "full_name": full_name,
+            "age": age,
+            "gender": gender,
+            "height_cm": height_cm,
+            "current_weight_kg": current_weight_kg,
+            "activity_level": activity_level,
+            "fitness_goal": fitness_goal,
+            "pace": pace,
+            "target_weight_kg": target_weight_kg,
+            "daily_calorie_target": rec.daily_calorie_target,
+            "bmr": rec.bmr,
+            "tdee": rec.tdee,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        res = client.table("profiles").upsert(new_profile).execute()
+        return res.data[0] if (res.data and len(res.data) > 0) else new_profile
+
+    current = existing_res.data[0]
     # Recalculate calorie target if health metrics changed
     metric_keys = ["age", "gender", "height_cm", "current_weight_kg", "activity_level", "fitness_goal", "target_weight_kg", "pace"]
     if any(k in update_dict for k in metric_keys):
         calc_input = CalorieCalculationInput(
-            age=update_dict.get("age", current["age"]),
-            gender=update_dict.get("gender", current["gender"]),
-            height_cm=update_dict.get("height_cm", current["height_cm"]),
-            current_weight_kg=update_dict.get("current_weight_kg", current["current_weight_kg"]),
-            activity_level=update_dict.get("activity_level", current["activity_level"]),
-            fitness_goal=update_dict.get("fitness_goal", current["fitness_goal"]),
+            age=int(update_dict.get("age", current.get("age", 25))),
+            gender=update_dict.get("gender", current.get("gender", "female")),
+            height_cm=float(update_dict.get("height_cm", current.get("height_cm", 170.0))),
+            current_weight_kg=float(update_dict.get("current_weight_kg", current.get("current_weight_kg", 70.0))),
+            activity_level=update_dict.get("activity_level", current.get("activity_level", "moderately_active")),
+            fitness_goal=update_dict.get("fitness_goal", current.get("fitness_goal", "lose_weight")),
             pace=update_dict.get("pace", current.get("pace") or "steady"),
-            target_weight_kg=update_dict.get("target_weight_kg", current.get("target_weight_kg"))
+            target_weight_kg=float(update_dict["target_weight_kg"]) if update_dict.get("target_weight_kg") else (
+                float(current["target_weight_kg"]) if current.get("target_weight_kg") else None
+            )
         )
         rec = calculate_calories(calc_input)
         update_dict["daily_calorie_target"] = rec.daily_calorie_target
