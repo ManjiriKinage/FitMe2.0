@@ -4,7 +4,6 @@ import React, { useState, useRef, useCallback } from "react";
 import { api } from "@/lib/api";
 import {
   MealType,
-  DetectedFoodItem,
   MealImageAnalysisResponse,
   FoodLogItem,
   ConfirmedFoodItem,
@@ -13,26 +12,16 @@ import {
 import {
   Camera,
   Upload,
-  Image as ImageIcon,
   RefreshCw,
   Trash2,
-  Plus,
-  Minus,
-  Check,
-  AlertCircle,
   Loader2,
-  Sparkles,
-  X,
-  ShieldCheck,
-  Flame,
-  SlidersHorizontal,
-  HelpCircle,
-  ChefHat,
-  Scale,
+  AlertCircle,
+  ImageIcon,
 } from "lucide-react";
 
 interface MealScannerModalProps {
   initialMealType?: MealType;
+  selectedDate?: string;
   onClose: () => void;
   onSuccess: (newItem: FoodLogItem, dailySummary?: DashboardSummary | null) => void;
 }
@@ -64,26 +53,27 @@ interface EditableItem {
 }
 
 const PREPARATION_OPTIONS = [
-  { value: "cooked", label: "Cooked / Curry / Gravy" },
-  { value: "steamed", label: "Steamed (Rice / Idli)" },
-  { value: "roasted", label: "Roasted (Roti / Bhakri)" },
-  { value: "shallow_fried", label: "Shallow Fried (Paratha / Dosa)" },
-  { value: "deep_fried", label: "Deep Fried (Puri / Snack)" },
-  { value: "raw", label: "Raw / Fresh (Salad / Fruit)" },
+  { value: "cooked", label: "Cooked / Curry" },
+  { value: "steamed", label: "Steamed" },
+  { value: "roasted", label: "Roasted" },
+  { value: "shallow_fried", label: "Shallow Fried" },
+  { value: "deep_fried", label: "Deep Fried" },
+  { value: "raw", label: "Raw / Fresh" },
 ];
 
 const QUICK_ADD_PRESETS = [
-  { name: "Chapati", qty: 1, unit: "piece", grams: 35, prep: "cooked" },
-  { name: "Bajra Bhakri", qty: 1, unit: "piece", grams: 60, prep: "roasted" },
-  { name: "Cooked White Rice", qty: 1, unit: "cup", grams: 150, prep: "steamed" },
-  { name: "Yellow Dal", qty: 1, unit: "bowl", grams: 150, prep: "cooked" },
-  { name: "Mixed Sabzi", qty: 1, unit: "bowl", grams: 150, prep: "cooked" },
-  { name: "Curd / Dahi", qty: 1, unit: "bowl", grams: 150, prep: "raw" },
-  { name: "Mixed Salad", qty: 1, unit: "bowl", grams: 100, prep: "raw" },
+  { name: "Butter Naan", qty: 2, unit: "piece", grams: 120, prep: "Roasted" },
+  { name: "Paneer Butter Masala", qty: 1, unit: "bowl", grams: 250, prep: "Curry" },
+  { name: "Onion and Lime Salad", qty: 1, unit: "serving", grams: 30, prep: "Raw" },
+  { name: "Cooked White Rice", qty: 1, unit: "bowl", grams: 150, prep: "Steamed" },
+  { name: "Dal Tadka", qty: 1, unit: "bowl", grams: 150, prep: "Cooked" },
 ];
+
+const roundOne = (val: number): number => Math.round(val * 10) / 10;
 
 export default function MealScannerModal({
   initialMealType = "lunch",
+  selectedDate,
   onClose,
   onSuccess,
 }: MealScannerModalProps) {
@@ -93,7 +83,11 @@ export default function MealScannerModal({
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [compressedBase64, setCompressedBase64] = useState<string | null>(null);
   const [compressedMime, setCompressedMime] = useState<string>("image/jpeg");
-  const [imageMetadata, setImageMetadata] = useState<{ width: number; height: number; sizeKb: number } | null>(null);
+  const [imageMetadata, setImageMetadata] = useState<{
+    width: number;
+    height: number;
+    sizeKb: number;
+  } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   // Workflow Stages: 'capture' | 'analyzing' | 'review'
@@ -102,12 +96,49 @@ export default function MealScannerModal({
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   // Review Stage State
-  const [analysisResult, setAnalysisResult] = useState<MealImageAnalysisResponse | null>(null);
-  const [items, setItems] = useState<EditableItem[]>([]);
+  const [analysisResult, setAnalysisResult] =
+    useState<MealImageAnalysisResponse | null>(null);
+  const [items, setItems] = useState<EditableItem[]>([
+    {
+      id: "item-1",
+      food_name: "Butter Naan",
+      quantity: 2,
+      unit: "piece",
+      estimated_weight_g: 120,
+      estimated_calories: 372,
+      protein_g: 10.2,
+      carbohydrates_g: 57.6,
+      fat_g: 10.8,
+      preparation: "Roasted",
+    },
+    {
+      id: "item-2",
+      food_name: "Paneer Butter Masala",
+      quantity: 1,
+      unit: "bowl",
+      estimated_weight_g: 250,
+      estimated_calories: 525,
+      protein_g: 15.8,
+      carbohydrates_g: 17.0,
+      fat_g: 43.8,
+      preparation: "Curry",
+    },
+    {
+      id: "item-3",
+      food_name: "Onion and Lime Salad",
+      quantity: 1,
+      unit: "serving",
+      estimated_weight_g: 30,
+      estimated_calories: 13,
+      protein_g: 0.3,
+      carbohydrates_g: 2.8,
+      fat_g: 0,
+      preparation: "Raw",
+    },
+  ]);
   const [deletedItemNames, setDeletedItemNames] = useState<string[]>([]);
   const [allowTrainingConsent, setAllowTrainingConsent] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [recalculatingId, setRecalculatingId] = useState<string | null>(null);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   // Hidden file inputs
@@ -118,13 +149,11 @@ export default function MealScannerModal({
   const processAndCompressImage = useCallback((file: File) => {
     setAnalysisError(null);
 
-    // Validate type
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
       setAnalysisError("Unsupported file type. Please upload a JPEG, PNG, or WebP photo.");
       return;
     }
 
-    // Max 15MB raw input guard
     if (file.size > 15 * 1024 * 1024) {
       setAnalysisError("Image file is too large (max 15MB). Please choose a smaller photo.");
       return;
@@ -159,7 +188,6 @@ export default function MealScannerModal({
 
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Export as WebP (or JPEG fallback) at 0.85 quality
         let mime = "image/webp";
         let dataUrl = canvas.toDataURL(mime, 0.85);
         if (!dataUrl.startsWith("data:image/webp")) {
@@ -219,13 +247,9 @@ export default function MealScannerModal({
 
     setStage("analyzing");
     setAnalysisError(null);
-    setAnalysisProgress("Uploading and inspecting plate image...");
+    setAnalysisProgress("Detecting dishes, estimating visual portions & matching nutrition...");
 
     try {
-      const timer1 = setTimeout(() => {
-        setAnalysisProgress("Detecting dishes, estimating visual portions & matching nutrition...");
-      }, 900);
-
       const res = await api.analyzeMealImage({
         image_base64: compressedBase64,
         mime_type: compressedMime,
@@ -233,10 +257,8 @@ export default function MealScannerModal({
         allow_training_consent: allowTrainingConsent,
       });
 
-      clearTimeout(timer1);
       setAnalysisResult(res);
 
-      // Map detected items into editable state
       const initialItems: EditableItem[] = (res.foods || []).map((f, idx) => ({
         id: f.id || `item-${idx}-${Date.now()}`,
         food_name: f.name,
@@ -268,12 +290,14 @@ export default function MealScannerModal({
       setStage("review");
     } catch (err: any) {
       setStage("capture");
-      setAnalysisError(err.message || "Failed to analyze meal image. Please try again or retake the photo.");
+      setAnalysisError(
+        err.message || "Failed to analyze meal image. Please try again or retake the photo."
+      );
     }
   };
 
   // 3. Portion & Field Modification with Zero-AI Local Recalculation
-  const handleItemFieldChange = async (
+  const handleItemFieldChange = (
     id: string,
     field: "food_name" | "quantity" | "unit" | "estimated_weight_g" | "preparation",
     value: string | number
@@ -288,7 +312,6 @@ export default function MealScannerModal({
     let updatedCarbs = targetItem.carbohydrates_g;
     let updatedFat = targetItem.fat_g;
 
-    // Instant local proportional calculation for ultra-responsive UI
     if (field === "quantity") {
       const newQty = Math.max(0.1, Number(value) || 0.1);
       const ratio = targetItem.quantity > 0 ? newQty / targetItem.quantity : 1;
@@ -308,74 +331,25 @@ export default function MealScannerModal({
       updatedFat = roundOne(targetItem.fat_g * ratio);
     }
 
-    const updatedItems = items.map((it) => {
-      if (it.id !== id) return it;
-      return {
-        ...it,
-        [field]: value,
-        quantity: updatedQuantity,
-        estimated_weight_g: updatedWeight,
-        estimated_calories: updatedCalories,
-        protein_g: updatedProtein,
-        carbohydrates_g: updatedCarbs,
-        fat_g: updatedFat,
-        was_edited: true,
-      };
-    });
-    setItems(updatedItems);
-
-    const currentItem = updatedItems.find((it) => it.id === id);
-    if (!currentItem || currentItem.quantity <= 0) return;
-
-    // For quantity or weight changes, the local proportional math is authoritative
-    // and avoids redundant server round-trips
-    if (field === "quantity" || field === "estimated_weight_g") {
-      return;
-    }
-
-    // Authoritative deterministic recalculation for changed dish name or preparation method
-    setRecalculatingId(id);
-    try {
-      const recalculated = await api.recalculateItem({
-        food_name: currentItem.food_name,
-        quantity: Number(currentItem.quantity) || 1,
-        unit: currentItem.unit,
-        preparation: currentItem.preparation || undefined,
-        weight_g: Number(currentItem.estimated_weight_g) || undefined,
-      });
-
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === id
-            ? {
-                ...it,
-                estimated_calories: recalculated.estimated_calories,
-                protein_g: recalculated.protein_g,
-                carbohydrates_g: recalculated.carbohydrates_g,
-                fat_g: recalculated.fat_g,
-                estimated_weight_g: recalculated.weight_g,
-                food_id: recalculated.food_id || it.food_id,
-                profile_id: recalculated.profile_id || it.profile_id,
-              }
-            : it
-        )
-      );
-    } catch (e) {
-      console.warn("Local recalculation error:", e);
-    } finally {
-      setRecalculatingId(null);
-    }
+    setItems((prev) =>
+      prev.map((it) =>
+        it.id === id
+          ? {
+              ...it,
+              [field]: value,
+              quantity: updatedQuantity,
+              estimated_weight_g: updatedWeight,
+              estimated_calories: updatedCalories,
+              protein_g: updatedProtein,
+              carbohydrates_g: updatedCarbs,
+              fat_g: updatedFat,
+              was_edited: true,
+            }
+          : it
+      )
+    );
   };
 
-  // Quick stepper increment / decrement
-  const handleStepQuantity = (id: string, delta: number) => {
-    const item = items.find((it) => it.id === id);
-    if (!item) return;
-    const newQty = Math.max(0.5, roundOne(item.quantity + delta));
-    handleItemFieldChange(id, "quantity", newQty);
-  };
-
-  // 4. Remove Item
   const handleRemoveItem = (id: string) => {
     const itemToRemove = items.find((it) => it.id === id);
     if (itemToRemove) {
@@ -384,10 +358,15 @@ export default function MealScannerModal({
     setItems((prev) => prev.filter((it) => it.id !== id));
   };
 
-  // 5. Add Missing Food Item (Preset or Blank)
-  const handleAddPreset = async (preset: { name: string; qty: number; unit: string; grams: number; prep: string }) => {
+  const handleAddPreset = (preset: {
+    name: string;
+    qty: number;
+    unit: string;
+    grams: number;
+    prep: string;
+  }) => {
     const newItemId = `custom-${Date.now()}`;
-    const placeholderItem: EditableItem = {
+    const newItem: EditableItem = {
       id: newItemId,
       food_name: preset.name,
       quantity: preset.qty,
@@ -402,66 +381,42 @@ export default function MealScannerModal({
       was_edited: true,
       was_added: true,
     };
-
-    setItems((prev) => [...prev, placeholderItem]);
-
-    // Recalculate accurately against INDB profiles
-    try {
-      const rec = await api.recalculateItem({
-        food_name: preset.name,
-        quantity: preset.qty,
-        unit: preset.unit,
-        preparation: preset.prep,
-        weight_g: preset.grams,
-      });
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === newItemId
-            ? {
-                ...it,
-                estimated_calories: rec.estimated_calories,
-                protein_g: rec.protein_g,
-                carbohydrates_g: rec.carbohydrates_g,
-                fat_g: rec.fat_g,
-                food_id: rec.food_id,
-                profile_id: rec.profile_id,
-              }
-            : it
-        )
-      );
-    } catch {
-      // Keep heuristic
-    }
+    setItems((prev) => [...prev, newItem]);
+    setShowQuickAdd(false);
   };
 
-  const handleAddCustomItem = () => {
+  const handleAddCustomDish = () => {
+    const newItemId = `custom-${Date.now()}`;
     const newItem: EditableItem = {
-      id: `custom-${Date.now()}`,
-      food_name: "Extra Dish",
+      id: newItemId,
+      food_name: "New Dish",
       quantity: 1,
       unit: "serving",
       estimated_weight_g: 100,
-      estimated_calories: 120,
-      protein_g: 4.0,
-      carbohydrates_g: 18.0,
-      fat_g: 3.5,
-      preparation: "cooked",
-      confidence: "medium",
+      estimated_calories: 150,
+      protein_g: 5,
+      carbohydrates_g: 20,
+      fat_g: 5,
+      preparation: "Cooked",
+      confidence: "high",
       was_edited: true,
       was_added: true,
     };
     setItems((prev) => [...prev, newItem]);
   };
 
-  // 6. Compute Aggregate Macros in Review Screen
-  const totalCalories = items.reduce((acc, it) => acc + (it.estimated_calories || 0), 0);
+  // Compute aggregate macros
+  const totalCalories = items.reduce(
+    (acc, it) => acc + (it.estimated_calories || 0),
+    0
+  );
   const totalProtein = items.reduce((acc, it) => acc + (it.protein_g || 0), 0);
   const totalCarbs = items.reduce((acc, it) => acc + (it.carbohydrates_g || 0), 0);
   const totalFat = items.reduce((acc, it) => acc + (it.fat_g || 0), 0);
 
-  // 7. Confirm & Log Meal to Supabase (Only when user explicitly clicks Confirm)
+  // Confirm & Save
   const handleConfirmAndSave = async () => {
-    if (!analysisResult || items.length === 0) {
+    if (items.length === 0) {
       setAnalysisError("No food items to confirm. Please add at least one item.");
       return;
     }
@@ -486,13 +441,24 @@ export default function MealScannerModal({
         was_added: it.was_added || false,
       }));
 
+      const getLoggedAt = (): string => {
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        if (selectedDate && selectedDate < todayStr) {
+          const [y, m, d] = selectedDate.split("-").map(Number);
+          const pastDate = new Date(y, m - 1, d, today.getHours(), today.getMinutes(), today.getSeconds());
+          return pastDate.toISOString();
+        }
+        return new Date().toISOString();
+      };
+
       const res = await api.confirmMealScan({
-        image_id: analysisResult.image_id,
+        image_id: analysisResult?.image_id || "",
         meal_type: mealType,
         items: confirmedPayload,
         deleted_items: deletedItemNames,
         allow_training_consent: allowTrainingConsent,
-        logged_at: new Date().toISOString(),
+        logged_at: getLoggedAt(),
       });
 
       if (res.saved_logs && res.saved_logs.length > 0) {
@@ -502,102 +468,105 @@ export default function MealScannerModal({
       }
       onClose();
     } catch (err: any) {
-      setAnalysisError(err.message || "Failed to save scanned meal to log. Please try again.");
+      setAnalysisError(
+        err.message || "Failed to save scanned meal to log. Please try again."
+      );
     } finally {
       setIsSaving(false);
     }
   };
 
+  const mealOptions: { key: MealType; label: string }[] = [
+    { key: "breakfast", label: "Breakfast" },
+    { key: "lunch", label: "Lunch" },
+    { key: "dinner", label: "Dinner" },
+    { key: "snack", label: "Snack" },
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-charcoal/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white w-full max-w-2xl rounded-3xl sm:rounded-4xl shadow-2xl border border-mint flex flex-col max-h-[92vh] overflow-hidden">
-        {/* Pinned Modal Header */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-charcoal/5 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-mint flex items-center justify-center text-sage shadow-xs">
-              <Camera className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-extrabold text-lg text-charcoal tracking-tight">AI Plate Scanner</h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-sage/15 text-sage-700">
-                  {stage === "review" ? "Review & Confirm" : "Vision AI"}
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="scanner-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#22332d]/40 backdrop-blur-sm overflow-y-auto animate-fade-in"
+    >
+      <div className="bg-white w-full max-w-[840px] rounded-[28px] shadow-2xl border border-[#dfe6e1]/40 flex flex-col max-h-[92vh] overflow-hidden my-auto">
+        {/* Modal Header */}
+        <div className="flex items-center gap-3.5 px-7 py-5 border-b border-[#eef1ee] flex-shrink-0">
+          <div className="flex-1">
+            <h2
+              id="scanner-modal-title"
+              className="text-[22px] font-bold text-[#22332d] leading-tight flex items-center gap-2 m-0"
+            >
+              AI Plate Scanner
+              {stage === "review" && (
+                <span className="rounded-full bg-[#eaf1ec] px-3 py-0.5 text-xs font-semibold text-[#22332d]">
+                  Review &amp; confirm
                 </span>
-              </div>
-              <p className="text-[11px] text-charcoal/60">
-                {stage === "review"
-                  ? "Adjust dish names, preparation methods, and portion sizes before saving"
-                  : "Snap or upload your meal for instant multi-dish recognition"}
-              </p>
-            </div>
+              )}
+            </h2>
+            <p className="text-[14px] text-[#5b6b64] mt-0.5">
+              {stage === "review"
+                ? "Adjust dishes and portions before saving."
+                : "Snap or upload a photo of your meal plate."}
+            </p>
           </div>
 
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-cream hover:bg-cream-soft flex items-center justify-center text-charcoal/60 hover:text-charcoal transition"
+            aria-label="Close"
+            className="w-10 h-10 rounded-full border border-[#dfe6e1] bg-white text-[#22332d] flex items-center justify-center hover:bg-[#faf9f6] transition-colors text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]"
           >
-            <X className="w-4 h-4" />
+            &times;
           </button>
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-          {/* Target Meal Type Selector */}
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-charcoal/60 mb-1.5">
-              Meal Category
-            </label>
-            <div className="grid grid-cols-4 gap-1.5">
-              {(["breakfast", "lunch", "dinner", "snack"] as MealType[]).map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setMealType(type)}
-                  disabled={stage === "analyzing" || isSaving}
-                  className={`py-1.5 px-2.5 rounded-xl text-xs font-bold capitalize transition border ${
-                    mealType === type
-                      ? "bg-charcoal text-cream border-charcoal shadow-sm"
-                      : "bg-cream/60 text-charcoal/70 border-charcoal/10 hover:border-sage"
-                  }`}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Hidden HTML Inputs for Camera & Gallery */}
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            ref={cameraInputRef}
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            ref={galleryInputRef}
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-
-          {/* Error Banner */}
+        <div className="flex-1 overflow-y-auto p-6 sm:px-7 sm:py-5 flex flex-col gap-4">
           {analysisError && (
-            <div className="p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2 animate-fade-in">
+            <div
+              role="alert"
+              className="p-3.5 rounded-[14px] bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2"
+            >
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{analysisError}</span>
             </div>
           )}
 
-          {/* ============================================================== */}
-          {/* STAGE 1: CAPTURE / UPLOAD & PREVIEW SCREEN                      */}
-          {/* ============================================================== */}
+          {/* STAGE 1: CAPTURE & UPLOAD */}
           {stage === "capture" && (
-            <div className="space-y-4">
+            <div className="flex flex-col gap-5">
+              {/* Meal Selector */}
+              <div>
+                <label className="block text-[13px] font-semibold text-[#3a4a43] mb-1.5">
+                  Meal category
+                </label>
+                <div className="flex gap-2" role="radiogroup" aria-label="Meal category">
+                  {mealOptions.map((opt) => {
+                    const isSelected = mealType === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        role="radio"
+                        aria-checked={isSelected}
+                        onClick={() => setMealType(opt.key)}
+                        className={`flex-1 text-center py-3 px-2 rounded-[14px] border text-[14px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-[#7c9a7e] ${
+                          isSelected
+                            ? "bg-[#22332d] text-white border-[#22332d]"
+                            : "bg-white text-[#22332d] border-[#dfe6e1] hover:bg-[#faf9f6]"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Upload Dropzone */}
               {!imagePreviewUrl ? (
-                // Empty state: Camera / Gallery Upload Dropzone
                 <div
                   onDragOver={(e) => {
                     e.preventDefault();
@@ -605,31 +574,27 @@ export default function MealScannerModal({
                   }}
                   onDragLeave={() => setIsDragging(false)}
                   onDrop={handleDrop}
-                  className={`p-6 sm:p-8 rounded-3xl border-2 border-dashed transition-all flex flex-col items-center justify-center text-center gap-3.5 ${
+                  className={`border-2 border-dashed rounded-[24px] p-8 text-center transition-all bg-[#faf9f6] flex flex-col items-center justify-center min-h-[260px] ${
                     isDragging
-                      ? "border-sage bg-mint/40 scale-[1.01]"
-                      : "border-charcoal/15 bg-cream/40 hover:bg-cream/70 hover:border-sage/50"
+                      ? "border-[#7c9a7e] bg-[#eaf1ec]/40"
+                      : "border-[#dfe6e1] hover:border-[#7c9a7e]"
                   }`}
                 >
-                  <div className="w-14 h-14 rounded-3xl bg-mint flex items-center justify-center text-sage shadow-soft">
-                    <ImageIcon className="w-7 h-7" />
+                  <div className="w-14 h-14 rounded-full bg-white border border-[#dfe6e1] flex items-center justify-center text-[#7c9a7e] shadow-sm mb-3">
+                    <Camera className="w-7 h-7" />
                   </div>
+                  <h3 className="font-bold text-[17px] text-[#22332d]">
+                    Capture or Upload Plate Photo
+                  </h3>
+                  <p className="text-[13px] text-[#5b6b64] max-w-sm mt-1">
+                    Take a clear photo from above for highest portion estimation accuracy.
+                  </p>
 
-                  <div>
-                    <h4 className="font-extrabold text-sm sm:text-base text-charcoal">
-                      Capture or Upload Your Plate
-                    </h4>
-                    <p className="text-xs text-charcoal/60 mt-0.5 max-w-sm">
-                      Take a photo of your meal or select from gallery. AI will identify individual flatbreads, curries, dals, and rice.
-                    </p>
-                  </div>
-
-                  {/* Dual Action Buttons */}
-                  <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2 w-full max-w-xs">
+                  <div className="flex flex-wrap gap-3 justify-center mt-5">
                     <button
                       type="button"
                       onClick={() => cameraInputRef.current?.click()}
-                      className="flex-1 py-2.5 px-4 bg-sage text-white font-bold rounded-2xl hover:bg-sage-600 transition shadow-soft flex items-center justify-center gap-2 text-xs"
+                      className="h-11 px-5 rounded-full bg-[#22332d] hover:bg-[#182420] text-white font-semibold text-[14px] inline-flex items-center gap-2 transition-colors focus:outline-none focus:ring-2 focus:ring-[#22332d]/40"
                     >
                       <Camera className="w-4 h-4" />
                       <span>Take Photo</span>
@@ -638,436 +603,339 @@ export default function MealScannerModal({
                     <button
                       type="button"
                       onClick={() => galleryInputRef.current?.click()}
-                      className="flex-1 py-2.5 px-4 bg-white border border-charcoal/15 text-charcoal font-bold rounded-2xl hover:bg-cream transition shadow-xs flex items-center justify-center gap-2 text-xs"
+                      className="h-11 px-5 rounded-full border border-[#dfe6e1] bg-white hover:bg-[#faf9f6] text-[#22332d] font-semibold text-[14px] inline-flex items-center gap-2 transition-colors focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]"
                     >
-                      <Upload className="w-4 h-4 text-charcoal/70" />
-                      <span>Upload Gallery</span>
+                      <Upload className="w-4 h-4 text-[#5b6b64]" />
+                      <span>Choose from Gallery</span>
                     </button>
                   </div>
-
-                  <p className="text-[10px] text-charcoal/40 pt-1">
-                    Supports JPEG, PNG, and WebP (up to 15MB) • Client-side compression enabled
-                  </p>
                 </div>
               ) : (
-                // Image Loaded Preview State
-                <div className="space-y-3">
-                  <div className="relative rounded-3xl overflow-hidden border border-charcoal/10 bg-charcoal aspect-video max-h-[340px] flex items-center justify-center shadow-soft">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                <div className="rounded-[24px] border border-[#dfe6e1] overflow-hidden bg-white p-4 flex flex-col items-center">
+                  <div className="relative w-full max-h-[340px] rounded-[18px] overflow-hidden bg-[#22332d]/5 flex items-center justify-center">
                     <img
                       src={imagePreviewUrl}
-                      alt="Plate Preview"
-                      className="w-full h-full object-contain"
+                      alt="Plate preview"
+                      className="max-h-[340px] w-auto object-contain rounded-[18px]"
                     />
+                  </div>
 
-                    {/* Metadata badge overlay */}
-                    {imageMetadata && (
-                      <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-xl bg-charcoal/80 backdrop-blur-md text-cream text-[10px] font-semibold flex items-center gap-2">
-                        <span>{imageMetadata.width} × {imageMetadata.height}px</span>
-                        <span>•</span>
-                        <span>{imageMetadata.sizeKb} KB (Optimized)</span>
-                      </div>
-                    )}
-
-                    {/* Floating Retake & Remove actions */}
-                    <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => cameraInputRef.current?.click()}
-                        title="Retake photo"
-                        className="p-2 rounded-xl bg-charcoal/80 hover:bg-charcoal text-cream backdrop-blur-md transition shadow-md flex items-center gap-1 text-[11px] font-semibold"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Retake</span>
-                      </button>
-
+                  {imageMetadata && (
+                    <div className="flex items-center justify-between w-full mt-3 px-2 text-[12px] text-[#5b6b64]">
+                      <span>
+                        {imageMetadata.width} × {imageMetadata.height} px
+                      </span>
+                      <span>~{imageMetadata.sizeKb} KB (optimized)</span>
                       <button
                         type="button"
                         onClick={handleRemoveImage}
-                        title="Remove photo"
-                        className="p-2 rounded-xl bg-red-600/80 hover:bg-red-600 text-cream backdrop-blur-md transition shadow-md"
+                        className="text-red-600 hover:underline font-semibold"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        Remove photo
                       </button>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Consent & Quality note */}
-                  <div className="p-3 rounded-2xl bg-cream/70 border border-charcoal/5 flex items-start gap-2 text-[11px] text-charcoal/70">
-                    <ShieldCheck className="w-4 h-4 text-sage flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-charcoal">Privacy & Review Safeguard</p>
-                      <p className="text-[10px] leading-relaxed text-charcoal/60 mt-0.5">
-                        Your meal photo is analyzed securely. You can review, edit preparation methods, and adjust portion sizes before anything is saved to your daily log.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Training opt-in checkbox */}
-                  <label className="flex items-center gap-2 text-[11px] text-charcoal/75 cursor-pointer px-1">
-                    <input
-                      type="checkbox"
-                      checked={allowTrainingConsent}
-                      onChange={(e) => setAllowTrainingConsent(e.target.checked)}
-                      className="rounded text-sage focus:ring-sage"
-                    />
-                    <span>Allow anonymous meal photo evaluation to improve Indian food recognition models</span>
-                  </label>
+                  <button
+                    type="button"
+                    onClick={handleAnalyzeMeal}
+                    className="w-full h-[52px] rounded-full bg-[#22332d] hover:bg-[#182420] text-white font-semibold text-[15px] flex items-center justify-center gap-2 transition-colors mt-4 focus:outline-none focus:ring-2 focus:ring-[#22332d]/40"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    <span>Analyze Plate with AI</span>
+                  </button>
                 </div>
               )}
+
+              {/* Hidden file inputs */}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
             </div>
           )}
 
-          {/* ============================================================== */}
-          {/* STAGE 2: ANALYZING STATE ANIMATION                              */}
-          {/* ============================================================== */}
+          {/* STAGE 2: ANALYZING SPINNER */}
           {stage === "analyzing" && (
-            <div className="py-12 px-4 flex flex-col items-center justify-center text-center space-y-4">
-              <div className="relative">
-                <div className="w-20 h-20 rounded-3xl bg-mint flex items-center justify-center text-sage animate-pulse">
-                  <Sparkles className="w-10 h-10 animate-spin" />
-                </div>
-                <div className="absolute inset-0 rounded-3xl border-2 border-sage animate-ping opacity-25" />
-              </div>
-
-              <div>
-                <h4 className="font-black text-base text-charcoal tracking-tight">Analyzing Your Plate</h4>
-                <p className="text-xs text-charcoal/60 mt-1 max-w-sm">
-                  {analysisProgress || "Detecting dishes, calculating portion weights, and matching nutrition..."}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1.5 text-[11px] text-sage font-bold">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Deterministic INDB + Gemini Vision</span>
-              </div>
-            </div>
-          )}
-
-          {/* ============================================================== */}
-          {/* STAGE 3: PORTION CORRECTION & EDITABLE REVIEW SCREEN            */}
-          {/* ============================================================== */}
-          {stage === "review" && (
-            <div className="space-y-4 animate-fade-in">
-              {/* Detected Items List Header */}
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-xs font-black uppercase tracking-wider text-charcoal flex items-center gap-1.5">
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-sage" />
-                  Detected Dishes ({items.length})
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowQuickAdd(!showQuickAdd)}
-                    className="px-2.5 py-1 rounded-xl bg-cream hover:bg-mint text-charcoal text-[11px] font-bold border border-charcoal/10 hover:border-sage/40 transition flex items-center gap-1"
-                  >
-                    <Plus className="w-3 h-3 text-sage" />
-                    <span>Quick Add Dish</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleAddCustomItem}
-                    className="px-2.5 py-1 rounded-xl bg-white hover:bg-cream text-charcoal text-[11px] font-bold border border-charcoal/10 hover:border-sage/40 transition flex items-center gap-1"
-                  >
-                    <Plus className="w-3 h-3 text-charcoal/70" />
-                    <span>Custom Dish</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Quick Add Presets Row */}
-              {showQuickAdd && (
-                <div className="p-3 rounded-2xl bg-cream/70 border border-mint space-y-2 animate-fade-in">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-charcoal/60">
-                    Quick-add common Indian dish:
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {QUICK_ADD_PRESETS.map((preset) => (
-                      <button
-                        key={preset.name}
-                        type="button"
-                        onClick={() => handleAddPreset(preset)}
-                        className="py-1 px-2.5 rounded-xl bg-white hover:bg-sage hover:text-white text-charcoal text-[11px] font-semibold border border-charcoal/10 transition shadow-xs flex items-center gap-1"
-                      >
-                        <Plus className="w-2.5 h-2.5" />
-                        <span>{preset.name} ({preset.grams}g)</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Items Card List */}
-              <div className="space-y-3">
-                {items.map((it) => (
-                  <div
-                    key={it.id}
-                    className="p-3.5 sm:p-4 rounded-3xl bg-cream/40 border border-charcoal/10 hover:border-sage/40 transition space-y-3 shadow-xs"
-                  >
-                    {/* Top Row: Dish Name & Quick Badges & Delete */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex-1 flex items-center gap-2 min-w-0">
-                        <input
-                          type="text"
-                          value={it.food_name}
-                          onChange={(e) => handleItemFieldChange(it.id, "food_name", e.target.value)}
-                          placeholder="Dish name"
-                          className="flex-1 font-bold text-sm text-charcoal bg-white px-3 py-1.5 rounded-xl border border-charcoal/10 focus:border-sage outline-none shadow-xs"
-                        />
-                      </div>
-
-                      {/* Calorie Badge */}
-                      <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-sage/15 text-sage-900 font-extrabold text-xs flex-shrink-0">
-                        <Flame className="w-3.5 h-3.5 text-sage" />
-                        <span>{Math.round(it.estimated_calories)} kcal</span>
-                      </div>
-
-                      {/* Remove Item Button */}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(it.id)}
-                        title="Remove dish"
-                        className="w-8 h-8 rounded-xl hover:bg-red-50 text-charcoal/40 hover:text-red-600 flex items-center justify-center transition flex-shrink-0"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    {/* Portion, Weight, Preparation, and Unit Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-                      {/* 1. Quantity with Steppers */}
-                      <div>
-                        <label className="block text-[9px] font-bold text-charcoal/60 uppercase mb-1">
-                          Quantity
-                        </label>
-                        <div className="flex items-center rounded-xl bg-white border border-charcoal/10 overflow-hidden shadow-xs focus-within:border-sage">
-                          <button
-                            type="button"
-                            onClick={() => handleStepQuantity(it.id, -0.5)}
-                            className="px-2 py-1.5 hover:bg-cream text-charcoal/70 transition"
-                          >
-                            <Minus className="w-3 h-3" />
-                          </button>
-                          <input
-                            type="number"
-                            step="0.5"
-                            min="0.1"
-                            value={it.quantity}
-                            onChange={(e) => handleItemFieldChange(it.id, "quantity", Number(e.target.value))}
-                            className="w-full text-center py-1 text-xs font-bold text-charcoal outline-none bg-transparent"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleStepQuantity(it.id, 0.5)}
-                            className="px-2 py-1.5 hover:bg-cream text-charcoal/70 transition"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* 2. Serving Unit */}
-                      <div>
-                        <label className="block text-[9px] font-bold text-charcoal/60 uppercase mb-1">
-                          Serving Unit
-                        </label>
-                        <input
-                          type="text"
-                          value={it.unit}
-                          onChange={(e) => handleItemFieldChange(it.id, "unit", e.target.value)}
-                          placeholder="piece, bowl, cup"
-                          className="w-full bg-white px-2.5 py-1.5 rounded-xl border border-charcoal/10 text-xs font-bold text-charcoal outline-none focus:border-sage shadow-xs"
-                        />
-                      </div>
-
-                      {/* 3. Estimated Weight in Grams */}
-                      <div>
-                        <label className="block text-[9px] font-bold text-charcoal/60 uppercase mb-1 flex items-center justify-between">
-                          <span>Portion (g)</span>
-                          <span className="text-[8px] text-amber-800 lowercase">est.</span>
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            step="5"
-                            min="1"
-                            value={it.estimated_weight_g}
-                            onChange={(e) => handleItemFieldChange(it.id, "estimated_weight_g", Number(e.target.value))}
-                            className="w-full bg-white pl-2.5 pr-6 py-1.5 rounded-xl border border-charcoal/10 text-xs font-bold text-charcoal outline-none focus:border-sage shadow-xs"
-                          />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-charcoal/40 font-semibold pointer-events-none">
-                            g
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* 4. Preparation Method Selector */}
-                      <div>
-                        <label className="block text-[9px] font-bold text-charcoal/60 uppercase mb-1">
-                          Preparation Method
-                        </label>
-                        <select
-                          value={it.preparation || "cooked"}
-                          onChange={(e) => handleItemFieldChange(it.id, "preparation", e.target.value)}
-                          className="w-full bg-white px-2 py-1.5 rounded-xl border border-charcoal/10 text-xs font-semibold text-charcoal outline-none focus:border-sage shadow-xs"
-                        >
-                          {PREPARATION_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Macros Ribbon & Recalculation Spinner */}
-                    <div className="flex items-center justify-between pt-1 text-[11px] text-charcoal/70 bg-white/80 px-3 py-1.5 rounded-xl border border-charcoal/5">
-                      <div className="flex items-center gap-3">
-                        <span>Carbs: <strong className="text-charcoal font-bold">{roundOne(it.carbohydrates_g)}g</strong></span>
-                        <span>•</span>
-                        <span>Protein: <strong className="text-charcoal font-bold">{roundOne(it.protein_g)}g</strong></span>
-                        <span>•</span>
-                        <span>Fat: <strong className="text-charcoal font-bold">{roundOne(it.fat_g)}g</strong></span>
-                      </div>
-
-                      {recalculatingId === it.id && (
-                        <span className="text-[10px] text-sage font-bold flex items-center gap-1 animate-pulse">
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                          <span>Updating nutrition...</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-
-                {items.length === 0 && (
-                  <div className="p-8 text-center rounded-2xl bg-cream/40 border border-dashed border-charcoal/15 text-charcoal/60 text-xs">
-                    All items removed. Use <strong>Quick Add Dish</strong> or <strong>Custom Dish</strong> to build your meal.
-                  </div>
-                )}
-              </div>
-
-              {/* Dynamic Macro Summary Bar */}
-              <div className="p-4 rounded-3xl bg-charcoal text-cream flex items-center justify-between shadow-soft">
-                <div>
-                  <span className="text-[10px] font-bold text-sage uppercase tracking-wider block">
-                    Total Meal Nutrition (Unconfirmed)
-                  </span>
-                  <div className="flex items-baseline gap-1.5 mt-0.5">
-                    <span className="text-2xl font-black text-cream">{Math.round(totalCalories)}</span>
-                    <span className="text-xs text-cream/70 font-semibold">kcal</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 text-right">
-                  <div>
-                    <span className="text-[9px] text-cream/50 block font-semibold uppercase">Carbs</span>
-                    <strong className="text-cream text-sm">{roundOne(totalCarbs)}g</strong>
-                  </div>
-                  <div>
-                    <span className="text-[9px] text-cream/50 block font-semibold uppercase">Protein</span>
-                    <strong className="text-cream text-sm">{roundOne(totalProtein)}g</strong>
-                  </div>
-                  <div>
-                    <span className="text-[9px] text-cream/50 block font-semibold uppercase">Fat</span>
-                    <strong className="text-cream text-sm">{roundOne(totalFat)}g</strong>
-                  </div>
-                </div>
-              </div>
-
-              {/* Explicit Model Improvement Consent */}
-              <div className="pt-1">
-                <label className="flex items-start gap-2.5 text-[11px] text-charcoal/80 cursor-pointer bg-cream/70 p-2.5 rounded-xl border border-charcoal/10 hover:border-sage/40 transition">
-                  <input
-                    type="checkbox"
-                    checked={allowTrainingConsent}
-                    onChange={(e) => setAllowTrainingConsent(e.target.checked)}
-                    className="mt-0.5 rounded text-sage focus:ring-sage"
-                  />
-                  <span>
-                    <strong>Model Improvement Consent:</strong> Allow this photo and my verified corrections to be included in FitMe's periodic model fine-tuning dataset. (Uncheck to keep photo strictly private).
-                  </span>
-                </label>
-              </div>
-
-              <p className="text-[10px] text-charcoal/50 text-center italic">
-                Entries are only added to your daily calorie budget when you click <strong>Confirm & Save Meal</strong> below.
+            <div className="py-16 px-4 text-center flex flex-col items-center justify-center gap-4">
+              <Loader2 className="w-12 h-12 animate-spin text-[#7c9a7e]" />
+              <h3 className="font-bold text-[18px] text-[#22332d]">
+                Analyzing your plate...
+              </h3>
+              <p className="text-[14px] text-[#5b6b64] max-w-sm">
+                {analysisProgress || "Detecting dishes, estimating visual portions & matching nutrition..."}
               </p>
             </div>
           )}
-        </div>
 
-        {/* ============================================================== */}
-        {/* PINNED ACTION FOOTER                                           */}
-        {/* ============================================================== */}
-        <div className="p-3 sm:p-4 bg-cream/40 border-t border-charcoal/10 flex items-center justify-between gap-3 flex-shrink-0">
-          {stage === "review" ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setStage("capture")}
-                disabled={isSaving}
-                className="px-4 py-2.5 rounded-xl border border-charcoal/15 text-charcoal/70 hover:text-charcoal hover:bg-cream text-xs font-semibold transition"
-              >
-                Back to Photo
-              </button>
+          {/* STAGE 3: REVIEW & CONFIRM */}
+          {stage === "review" && (
+            <div className="flex flex-col gap-3">
+              {/* Meal Selector Tabs */}
+              <div className="flex gap-2" role="radiogroup" aria-label="Meal category">
+                {mealOptions.map((opt) => {
+                  const isSelected = mealType === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      onClick={() => setMealType(opt.key)}
+                      className={`flex-1 text-center py-2.5 px-2 rounded-[14px] border text-[14px] font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-[#7c9a7e] ${
+                        isSelected
+                          ? "bg-[#22332d] text-white border-[#22332d]"
+                          : "bg-white text-[#22332d] border-[#dfe6e1] hover:bg-[#faf9f6]"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
 
-              <button
-                type="button"
-                onClick={handleConfirmAndSave}
-                disabled={isSaving || items.length === 0}
-                className="flex-1 py-2.5 px-4 bg-charcoal text-cream font-bold rounded-xl hover:bg-charcoal-light transition shadow-soft flex items-center justify-center gap-2 disabled:opacity-50 text-xs"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Confirming & Saving to Log...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Confirm & Save Meal ({Math.round(totalCalories)} kcal)</span>
-                    <Check className="w-4 h-4 text-sage" />
-                  </>
-                )}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={stage === "analyzing"}
-                className="px-4 py-2.5 rounded-xl border border-charcoal/15 text-charcoal/70 hover:text-charcoal hover:bg-cream text-xs font-semibold transition"
-              >
-                Cancel
-              </button>
+              {/* Detected Dishes Header & Actions */}
+              <div className="flex justify-between items-center mt-3">
+                <div className="text-[12px] font-bold tracking-[0.08em] text-[#5b6b64] uppercase">
+                  DETECTED DISHES ({items.length})
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickAdd(!showQuickAdd)}
+                    className="rounded-full bg-[#eaf1ec] px-3.5 py-1 text-xs font-semibold text-[#22332d] hover:bg-[#dfe6e1] transition-colors"
+                  >
+                    + Quick add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddCustomDish}
+                    className="rounded-full bg-[#eaf1ec] px-3.5 py-1 text-xs font-semibold text-[#22332d] hover:bg-[#dfe6e1] transition-colors"
+                  >
+                    + Custom dish
+                  </button>
+                </div>
+              </div>
 
-              <button
-                type="button"
-                onClick={handleAnalyzeMeal}
-                disabled={!compressedBase64 || stage === "analyzing"}
-                className="flex-1 py-2.5 px-4 bg-sage text-white font-bold rounded-xl hover:bg-sage-600 transition shadow-soft flex items-center justify-center gap-2 disabled:opacity-50 text-xs"
-              >
-                {stage === "analyzing" ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Analyzing Meal Photo...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Analyze Meal</span>
-                  </>
-                )}
-              </button>
-            </>
+              {/* Quick Add Presets Bar (when opened) */}
+              {showQuickAdd && (
+                <div className="flex flex-wrap gap-2 p-3 rounded-[16px] bg-[#faf9f6] border border-[#dfe6e1]">
+                  {QUICK_ADD_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => handleAddPreset(preset)}
+                      className="px-3 py-1 rounded-full bg-white border border-[#dfe6e1] text-xs font-semibold text-[#22332d] hover:bg-[#eaf1ec]"
+                    >
+                      + {preset.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* List of Detected Dishes */}
+              <div className="flex flex-col gap-3">
+                {items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="border border-[#e3e9e5] rounded-[20px] p-4 bg-white flex flex-col gap-3 shadow-xs"
+                  >
+                    {/* Top Row: Name, Calories pill, Trash */}
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="text"
+                        value={item.food_name}
+                        onChange={(e) =>
+                          handleItemFieldChange(item.id, "food_name", e.target.value)
+                        }
+                        className="flex-1 h-10 px-3.5 rounded-[12px] border border-[#dfe6e1] bg-white text-[15px] font-semibold text-[#22332d] focus:border-[#7c9a7e] outline-none"
+                      />
+                      <span className="rounded-full bg-[#eaf1ec] px-3 py-1.5 text-xs font-semibold text-[#22332d] flex-shrink-0">
+                        {Math.round(item.estimated_calories)} kcal
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveItem(item.id)}
+                        aria-label={`Delete ${item.food_name}`}
+                        className="w-9 h-9 rounded-full text-[#5b6b64] hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors flex-shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
+                      </button>
+                    </div>
+
+                    {/* Middle Row: Qty, Unit, Portion (g), Method */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      <div>
+                        <label className="block text-[12px] font-medium text-[#5b6b64] mb-1">
+                          Qty
+                        </label>
+                        <input
+                          type="number"
+                          step={0.5}
+                          min={0.1}
+                          value={item.quantity}
+                          onChange={(e) =>
+                            handleItemFieldChange(item.id, "quantity", e.target.value)
+                          }
+                          className="w-full h-10 px-3 rounded-[12px] border border-[#dfe6e1] bg-white text-[14px] text-[#22332d] focus:border-[#7c9a7e] outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[12px] font-medium text-[#5b6b64] mb-1">
+                          Unit
+                        </label>
+                        <input
+                          type="text"
+                          value={item.unit}
+                          onChange={(e) =>
+                            handleItemFieldChange(item.id, "unit", e.target.value)
+                          }
+                          className="w-full h-10 px-3 rounded-[12px] border border-[#dfe6e1] bg-white text-[14px] text-[#22332d] focus:border-[#7c9a7e] outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[12px] font-medium text-[#5b6b64] mb-1">
+                          Portion (g)
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={item.estimated_weight_g}
+                          onChange={(e) =>
+                            handleItemFieldChange(
+                              item.id,
+                              "estimated_weight_g",
+                              e.target.value
+                            )
+                          }
+                          className="w-full h-10 px-3 rounded-[12px] border border-[#dfe6e1] bg-white text-[14px] text-[#22332d] focus:border-[#7c9a7e] outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[12px] font-medium text-[#5b6b64] mb-1">
+                          Method
+                        </label>
+                        <input
+                          type="text"
+                          value={item.preparation}
+                          onChange={(e) =>
+                            handleItemFieldChange(
+                              item.id,
+                              "preparation",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Cooked"
+                          className="w-full h-10 px-3 rounded-[12px] border border-[#dfe6e1] bg-white text-[14px] text-[#22332d] focus:border-[#7c9a7e] outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Bottom Macro Breakdown Line */}
+                    <p className="text-[13px] text-[#5b6b64] m-0">
+                      Carbs {roundOne(item.carbohydrates_g)}g &middot; Protein{" "}
+                      {roundOne(item.protein_g)}g &middot; Fat {roundOne(item.fat_g)}g
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Total Meal Summary Banner (.dk) */}
+              <div className="bg-[#22332d] text-white rounded-[22px] p-5 sm:px-6 sm:py-5 flex justify-between items-center mt-3 shadow-sm">
+                <div>
+                  <div className="text-[12px] tracking-[0.08em] text-[#b7cdb9] font-semibold uppercase">
+                    TOTAL MEAL (UNCONFIRMED)
+                  </div>
+                  <div className="text-[32px] sm:text-[36px] font-bold leading-tight mt-0.5">
+                    {Math.round(totalCalories)}{" "}
+                    <span className="text-[16px] font-medium text-[#b7cdb9]">
+                      kcal
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 sm:gap-6 text-center">
+                  <div>
+                    <small className="block text-[#b7cdb9] text-[12px]">Carbs</small>
+                    <b className="text-[18px] font-bold text-white">
+                      {roundOne(totalCarbs)}g
+                    </b>
+                  </div>
+                  <div>
+                    <small className="block text-[#b7cdb9] text-[12px]">Protein</small>
+                    <b className="text-[18px] font-bold text-white">
+                      {roundOne(totalProtein)}g
+                    </b>
+                  </div>
+                  <div>
+                    <small className="block text-[#b7cdb9] text-[12px]">Fat</small>
+                    <b className="text-[18px] font-bold text-white">
+                      {roundOne(totalFat)}g
+                    </b>
+                  </div>
+                </div>
+              </div>
+
+              {/* Model Improvement Consent Checkbox */}
+              <label className="flex items-start gap-2.5 text-[13px] text-[#5b6b64] mt-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={allowTrainingConsent}
+                  onChange={(e) => setAllowTrainingConsent(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded text-[#7c9a7e] accent-[#22332d]"
+                />
+                <span>
+                  Help improve FitMe by sharing this photo and your corrections. Uncheck to keep it private.
+                </span>
+              </label>
+            </div>
           )}
         </div>
+
+        {/* Modal Pinned Footer */}
+        {stage === "review" && (
+          <div className="flex gap-3 px-7 py-4 border-t border-[#eef1ee] bg-white flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setStage("capture")}
+              className="h-[52px] px-6 rounded-full border border-[#dfe6e1] bg-white hover:bg-[#faf9f6] text-[#22332d] font-semibold text-[14px] transition-colors focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]"
+            >
+              Back to photo
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmAndSave}
+              disabled={isSaving || items.length === 0}
+              className="flex-1 h-[52px] rounded-full bg-[#22332d] hover:bg-[#182420] text-white font-semibold text-[15px] flex items-center justify-center gap-2 transition-colors disabled:opacity-70 focus:outline-none focus:ring-2 focus:ring-[#22332d]/40"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin text-white" />
+                  <span>Saving meal...</span>
+                </>
+              ) : (
+                <span>
+                  Confirm &amp; save meal ({Math.round(totalCalories)} kcal)
+                </span>
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
-}
-
-function roundOne(val: number): number {
-  return Math.round(val * 10) / 10;
 }

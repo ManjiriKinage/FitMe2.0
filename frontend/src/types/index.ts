@@ -3,6 +3,8 @@ export type ActivityLevelType = "sedentary" | "lightly_active" | "moderately_act
 export type FitnessGoalType = "lose_weight" | "maintain_weight" | "gain_muscle" | "gain_weight";
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
+export type PaceType = "slow" | "steady" | "faster";
+
 export interface UserProfile {
   id: string;
   full_name: string;
@@ -12,6 +14,7 @@ export interface UserProfile {
   current_weight_kg: number;
   activity_level: ActivityLevelType;
   fitness_goal: FitnessGoalType;
+  pace?: PaceType;
   target_weight_kg?: number | null;
   daily_calorie_target: number;
   bmr?: number | null;

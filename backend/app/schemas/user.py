@@ -3,9 +3,10 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Literal
 from datetime import datetime
 
-GenderType = Literal["male", "female", "other", "prefer_not_to_say"]
-ActivityLevelType = Literal["sedentary", "lightly_active", "moderately_active", "very_active", "extra_active"]
-FitnessGoalType = Literal["lose_weight", "maintain_weight", "gain_muscle", "gain_weight"]
+GenderType = str
+ActivityLevelType = str
+FitnessGoalType = str
+PaceType = str
 
 class CalorieCalculationInput(BaseModel):
     age: int = Field(..., ge=10, le=120, description="Age in years")
@@ -15,6 +16,7 @@ class CalorieCalculationInput(BaseModel):
     activity_level: ActivityLevelType
     fitness_goal: FitnessGoalType
     target_weight_kg: Optional[float] = Field(None, ge=20, le=500, description="Target weight in kilograms")
+    pace: Optional[PaceType] = Field("steady", description="Weight loss or gain pace")
 
 class CalorieCalculationResult(BaseModel):
     bmr: int
@@ -37,6 +39,7 @@ class ProfileUpdate(BaseModel):
     current_weight_kg: Optional[float] = Field(None, ge=20, le=500)
     activity_level: Optional[ActivityLevelType] = None
     fitness_goal: Optional[FitnessGoalType] = None
+    pace: Optional[PaceType] = None
     target_weight_kg: Optional[float] = Field(None, ge=20, le=500)
 
 class ProfileResponse(BaseModel):
@@ -48,6 +51,7 @@ class ProfileResponse(BaseModel):
     current_weight_kg: float
     activity_level: ActivityLevelType
     fitness_goal: FitnessGoalType
+    pace: Optional[str] = "steady"
     target_weight_kg: Optional[float] = None
     daily_calorie_target: int
     bmr: Optional[int] = None

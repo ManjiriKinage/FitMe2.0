@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -11,6 +11,7 @@ import {
   GenderType,
   CalorieCalculationResult,
 } from "@/types";
+import { calculateDailyTarget } from "@/lib/nutrition";
 import LiveTargetPreviewCard from "@/components/auth/LiveTargetPreviewCard";
 import { AlertCircle, Loader2 } from "lucide-react";
 
@@ -32,37 +33,38 @@ export default function RegisterPage() {
   // UI state
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [preview, setPreview] = useState<CalorieCalculationResult | null>(null);
-  const [calculatingPreview, setCalculatingPreview] = useState(false);
 
-  // Live calorie calculation preview whenever metrics change
-  useEffect(() => {
-    let active = true;
-    const fetchPreview = async () => {
-      if (!age || !heightCm || !currentWeightKg) return;
-      setCalculatingPreview(true);
-      try {
-        const res = await api.calculatePreview({
-          age: Number(age),
-          gender,
-          height_cm: Number(heightCm),
-          current_weight_kg: Number(currentWeightKg),
-          activity_level: activityLevel,
-          fitness_goal: fitnessGoal,
-          target_weight_kg: targetWeightKg ? Number(targetWeightKg) : undefined,
-        });
-        if (active) setPreview(res);
-      } catch {
-        // Silent catch for live preview
-      } finally {
-        if (active) setCalculatingPreview(false);
-      }
-    };
+  // Live calorie calculation preview using pure calculation function
+  const preview: CalorieCalculationResult | null = useMemo(() => {
+    if (!age || !heightCm || !currentWeightKg) return null;
+    const res = calculateDailyTarget({
+      weight: Number(currentWeightKg),
+      height: Number(heightCm),
+      age: Number(age),
+      gender: gender,
+      activity: activityLevel,
+      goal: fitnessGoal,
+      pace: "steady",
+      targetWeight: targetWeightKg ? Number(targetWeightKg) : null,
+    });
 
-    const timer = setTimeout(fetchPreview, 400);
-    return () => {
-      active = false;
-      clearTimeout(timer);
+    const heightM = Number(heightCm) / 100;
+    const bmiVal = Number((Number(currentWeightKg) / (heightM * heightM)).toFixed(1));
+    const bmiCat = bmiVal < 18.5 ? "Underweight" : bmiVal < 25 ? "Normal weight" : bmiVal < 30 ? "Overweight" : "Obese";
+
+    return {
+      bmr: res.bmr,
+      tdee: res.tdee,
+      daily_calorie_target: res.target,
+      bmi: bmiVal,
+      bmi_category: bmiCat,
+      macro_targets: {
+        carbohydrates_g: res.carbs,
+        protein_g: res.protein,
+        fat_g: res.fats,
+      },
+      explanation: "",
+      warnings: [],
     };
   }, [age, gender, heightCm, currentWeightKg, activityLevel, fitnessGoal, targetWeightKg]);
 
@@ -111,6 +113,7 @@ export default function RegisterPage() {
           current_weight_kg: Number(currentWeightKg),
           activity_level: activityLevel,
           fitness_goal: fitnessGoal,
+          pace: "steady",
           target_weight_kg: targetWeightKg ? Number(targetWeightKg) : null,
         });
       } catch (profileErr: any) {
@@ -423,7 +426,7 @@ export default function RegisterPage() {
           {/* Right Live Target Preview Card */}
           <LiveTargetPreviewCard
             preview={preview}
-            calculating={calculatingPreview}
+            calculating={false}
           />
         </div>
       </div>

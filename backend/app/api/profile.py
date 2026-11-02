@@ -10,7 +10,7 @@ router = APIRouter(prefix="/profile", tags=["Profile"])
 
 @router.get("", response_model=ProfileResponse)
 async def get_profile(user: Dict[str, Any] = Depends(get_current_user)):
-    """Fetch the authenticated user's profile."""
+    """Fetch the authenticated user's profile. Backfills targets once if missing."""
     client = get_supabase_admin_client(user) or get_supabase_anon_client()
     if not client:
         raise HTTPException(status_code=500, detail="Database client not configured.")
@@ -19,7 +19,32 @@ async def get_profile(user: Dict[str, Any] = Depends(get_current_user)):
     if not res.data or len(res.data) == 0:
         raise HTTPException(status_code=404, detail="Profile not found. Please complete profile setup.")
 
-    return res.data[0]
+    profile = res.data[0]
+    # Existing users with no saved or default values: calculate from profile on load and save once
+    if not profile.get("daily_calorie_target") or not profile.get("bmr") or not profile.get("tdee"):
+        calc_input = CalorieCalculationInput(
+            age=profile.get("age", 25),
+            gender=profile.get("gender", "female"),
+            height_cm=float(profile.get("height_cm", 170)),
+            current_weight_kg=float(profile.get("current_weight_kg", 70)),
+            activity_level=profile.get("activity_level", "moderately_active"),
+            fitness_goal=profile.get("fitness_goal", "lose_weight"),
+            pace=profile.get("pace") or "steady",
+            target_weight_kg=float(profile["target_weight_kg"]) if profile.get("target_weight_kg") else None
+        )
+        rec = calculate_calories(calc_input)
+        patch = {
+            "daily_calorie_target": rec.daily_calorie_target,
+            "bmr": rec.bmr,
+            "tdee": rec.tdee,
+        }
+        try:
+            client.table("profiles").update(patch).eq("id", user["id"]).execute()
+        except Exception as patch_err:
+            print("Profile target backfill note:", patch_err)
+        profile.update(patch)
+
+    return profile
 
 @router.post("", response_model=ProfileResponse)
 async def create_profile(
@@ -60,6 +85,7 @@ async def create_profile(
         "current_weight_kg": payload.current_weight_kg,
         "activity_level": payload.activity_level,
         "fitness_goal": payload.fitness_goal,
+        "pace": payload.pace or "steady",
         "target_weight_kg": payload.target_weight_kg,
         "daily_calorie_target": rec.daily_calorie_target,
         "bmr": rec.bmr,
@@ -92,7 +118,7 @@ async def update_profile(
     update_dict = payload.model_dump(exclude_unset=True)
 
     # Recalculate calorie target if health metrics changed
-    metric_keys = ["age", "gender", "height_cm", "current_weight_kg", "activity_level", "fitness_goal", "target_weight_kg"]
+    metric_keys = ["age", "gender", "height_cm", "current_weight_kg", "activity_level", "fitness_goal", "target_weight_kg", "pace"]
     if any(k in update_dict for k in metric_keys):
         calc_input = CalorieCalculationInput(
             age=update_dict.get("age", current["age"]),
@@ -101,6 +127,7 @@ async def update_profile(
             current_weight_kg=update_dict.get("current_weight_kg", current["current_weight_kg"]),
             activity_level=update_dict.get("activity_level", current["activity_level"]),
             fitness_goal=update_dict.get("fitness_goal", current["fitness_goal"]),
+            pace=update_dict.get("pace", current.get("pace") or "steady"),
             target_weight_kg=update_dict.get("target_weight_kg", current.get("target_weight_kg"))
         )
         rec = calculate_calories(calc_input)

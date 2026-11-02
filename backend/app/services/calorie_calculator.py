@@ -5,7 +5,9 @@ from app.schemas.user import CalorieCalculationInput, CalorieCalculationResult
 # Standard Harris-Benedict / Mifflin-St Jeor activity multipliers
 ACTIVITY_MULTIPLIERS = {
     "sedentary": 1.2,           # Little or no exercise, desk job
+    "light": 1.375,
     "lightly_active": 1.375,    # Light exercise/sports 1-3 days/week
+    "moderate": 1.55,
     "moderately_active": 1.55,  # Moderate exercise/sports 3-5 days/week
     "very_active": 1.725,       # Hard exercise/sports 6-7 days a week
     "extra_active": 1.9         # Very hard exercise, physical job or 2x training
@@ -48,47 +50,36 @@ def calculate_bmr(weight_kg: float, height_cm: float, age: int, gender: str) -> 
         # For non-binary, other, or prefer not to say, use midpoint
         return base - 78.0
 
+PACE_VALUES = {
+    "slow": 0.25,
+    "steady": 0.5,
+    "faster": 0.75
+}
+
 def calculate_macro_split(daily_calories: int, goal: str, weight_kg: float) -> Dict[str, float]:
     """
-    Computes evidence-based macronutrient targets in grams.
-    Protein (4 kcal/g), Carbohydrates (4 kcal/g), Fat (9 kcal/g).
+    Computes evidence-based macronutrient targets in whole grams:
+    - protein = 1.6 g/kg when losing, 1.2 g/kg otherwise
+    - fats = 25% of target calories / 9
+    - carbs = remaining calories / 4
     """
-    if goal == "gain_muscle":
-        # Resistance training focus: 1.8g - 2.0g protein / kg bodyweight
-        protein_g = round(min(weight_kg * 2.0, daily_calories * 0.30 / 4.0), 1)
-        fat_calories = daily_calories * 0.25
-        fat_g = round(fat_calories / 9.0, 1)
-        carb_calories = daily_calories - (protein_g * 4.0) - fat_calories
-        carbs_g = round(max(50.0, carb_calories / 4.0), 1)
-    elif goal == "lose_weight":
-        # Preserve lean mass with slightly higher protein ratio (~28%)
-        protein_calories = daily_calories * 0.28
-        protein_g = round(protein_calories / 4.0, 1)
-        fat_calories = daily_calories * 0.27
-        fat_g = round(fat_calories / 9.0, 1)
-        carbs_g = round((daily_calories - protein_calories - fat_calories) / 4.0, 1)
-    elif goal == "gain_weight":
-        # Calorie surplus with balanced high carb / moderate fat
-        protein_calories = daily_calories * 0.20
-        protein_g = round(protein_calories / 4.0, 1)
-        fat_calories = daily_calories * 0.25
-        fat_g = round(fat_calories / 9.0, 1)
-        carbs_g = round((daily_calories - protein_calories - fat_calories) / 4.0, 1)
-    else: # maintain_weight
-        # Standard balanced distribution (20% P, 30% F, 50% C)
-        protein_g = round((daily_calories * 0.20) / 4.0, 1)
-        fat_g = round((daily_calories * 0.30) / 9.0, 1)
-        carbs_g = round((daily_calories * 0.50) / 4.0, 1)
+    is_losing = goal in ("lose", "lose_weight")
+    protein_mult = 1.6 if is_losing else 1.2
+    protein_g = round(weight_kg * protein_mult)
+    fat_g = round((daily_calories * 0.25) / 9.0)
+    remaining_cals = (daily_calories * 0.75) - (protein_g * 4.0)
+    carbs_g = max(0, round(remaining_cals / 4.0))
 
     return {
-        "protein_g": protein_g,
-        "carbohydrates_g": carbs_g,
-        "fat_g": fat_g
+        "protein_g": float(protein_g),
+        "carbohydrates_g": float(carbs_g),
+        "fat_g": float(fat_g)
     }
 
 def calculate_calories(data: CalorieCalculationInput) -> CalorieCalculationResult:
     """
-    Calculates estimated BMR, TDEE, and safe personalized daily calorie intake.
+    Calculates estimated BMR, TDEE, and safe personalized daily calorie intake
+    using pure Mifflin-St Jeor and pace calculations.
     """
     warnings: List[str] = []
     
@@ -101,49 +92,39 @@ def calculate_calories(data: CalorieCalculationInput) -> CalorieCalculationResul
 
     # 2. BMR & TDEE Calculations
     bmr_val = calculate_bmr(data.current_weight_kg, data.height_cm, data.age, data.gender)
-    multiplier = ACTIVITY_MULTIPLIERS.get(data.activity_level, 1.2)
+    multiplier = ACTIVITY_MULTIPLIERS.get(data.activity_level, 1.55)
     tdee_val = bmr_val * multiplier
 
-    # 3. Goal-Specific Adjustments
-    explanation_parts = []
-    
-    if data.fitness_goal == "lose_weight":
-        # Moderate, sustainable deficit of ~20% (capped around 400-500 kcal)
-        deficit = min(500.0, max(300.0, tdee_val * 0.20))
-        target = tdee_val - deficit
-        explanation_parts.append(
-            f"Set a moderate, sustainable daily deficit of {int(deficit)} kcal below your estimated maintenance (TDEE) "
-            "to support steady fat loss while preserving metabolic health and muscle mass."
-        )
-    elif data.fitness_goal == "gain_muscle":
-        # Conservative surplus of ~10% (150 - 300 kcal) with resistance training
-        surplus = min(300.0, max(150.0, tdee_val * 0.10))
-        target = tdee_val + surplus
-        explanation_parts.append(
-            f"Provided a conservative surplus of {int(surplus)} kcal above maintenance to support muscle protein synthesis. "
-            "Muscle gain requires consistent resistance training and adequate dietary protein alongside energy intake, rather than excessive calorie surpluses."
-        )
-    elif data.fitness_goal == "gain_weight":
-        # Gradual surplus of ~15% (300 - 450 kcal)
-        surplus = min(450.0, max(300.0, tdee_val * 0.15))
-        target = tdee_val + surplus
-        explanation_parts.append(
-            f"Calculated a gradual energy surplus of {int(surplus)} kcal above maintenance for steady, healthy weight gain."
-        )
-    else:  # maintain_weight
-        target = tdee_val
-        explanation_parts.append(
-            "Target set to estimated maintenance energy requirement (TDEE) to preserve your current weight and body composition."
-        )
+    # 3. Pace and Deficit/Surplus (pace * 7700 / 7 = pace * 1100)
+    pace_kg = PACE_VALUES.get(data.pace, 0.5)
+    daily_change = round(pace_kg * 1100)
 
-    # 4. Safe Minimum Floor Enforcement
-    min_floor = MIN_CALORIES_MALE if data.gender == "male" else (
-        MIN_CALORIES_FEMALE if data.gender == "female" else MIN_CALORIES_DEFAULT
-    )
-    if target < min_floor:
-        target = min_floor
+    is_losing = data.fitness_goal in ("lose", "lose_weight")
+    is_gaining = data.fitness_goal in ("gain", "gain_weight", "gain_muscle")
+
+    explanation_parts = []
+    if is_losing:
+        target = tdee_val - daily_change
+        explanation_parts.append(
+            f"Set a daily deficit of {daily_change} kcal below TDEE ({pace_kg} kg/week pace)."
+        )
+    elif is_gaining:
+        target = tdee_val + daily_change
+        note = " to support muscle protein synthesis." if data.fitness_goal == "gain_muscle" else "."
+        explanation_parts.append(
+            f"Set a daily surplus of {daily_change} kcal above TDEE ({pace_kg} kg/week pace){note}"
+        )
+    else:
+        target = tdee_val
+        explanation_parts.append("Target set to maintenance (TDEE).")
+
+    # 4. Safety floor: never below 1200 (female) or 1500 (male), and never below BMR
+    abs_floor = 1500.0 if data.gender == "male" else 1200.0
+    safety_floor = max(abs_floor, bmr_val)
+    if target < safety_floor:
+        target = safety_floor
         warnings.append(
-            f"To prevent malnutrition and metabolic slowdown, target is safely capped at the evidence-based minimum of {min_floor} kcal/day."
+            f"Safety floor applied: target cannot be below {int(safety_floor)} kcal/day."
         )
 
     final_target = int(round(target))
@@ -152,10 +133,8 @@ def calculate_calories(data: CalorieCalculationInput) -> CalorieCalculationResul
     bmi, bmi_category = calculate_bmi(data.current_weight_kg, data.height_cm)
 
     explanation = (
-        f"Based on the Mifflin-St Jeor equation, your Basal Metabolic Rate (BMR) is ~{bmr_int} kcal/day. "
-        f"Factoring in your {data.activity_level.replace('_', ' ')} routine, your estimated maintenance (TDEE) is ~{tdee_int} kcal/day. "
-        + " ".join(explanation_parts) +
-        " (Note: BMI and calorie calculations are estimates for informational guidance, not formal clinical prescriptions)."
+        f"Based on Mifflin-St Jeor, BMR is ~{bmr_int} kcal/day and TDEE is ~{tdee_int} kcal/day. "
+        + " ".join(explanation_parts)
     )
 
     macro_targets = calculate_macro_split(final_target, data.fitness_goal, data.current_weight_kg)

@@ -57,7 +57,7 @@ async def update_goals_and_recalculate(
         raise HTTPException(status_code=404, detail="Profile not found.")
 
     curr = res.data[0]
-    previous_target = int(curr.get("daily_calorie_target", 2000))
+    previous_target = int(curr.get("daily_calorie_target") or 0)
 
     new_weight = payload.current_weight_kg if payload.current_weight_kg is not None else float(curr["current_weight_kg"])
     new_target_weight = payload.target_weight_kg if payload.target_weight_kg is not None else (
@@ -65,6 +65,7 @@ async def update_goals_and_recalculate(
     )
     new_activity = payload.activity_level or curr["activity_level"]
     new_goal = payload.fitness_goal or curr["fitness_goal"]
+    new_pace = payload.pace or curr.get("pace") or "steady"
     new_age = payload.age if payload.age is not None else curr["age"]
     new_height = payload.height_cm if payload.height_cm is not None else float(curr["height_cm"])
 
@@ -85,18 +86,20 @@ async def update_goals_and_recalculate(
         current_weight_kg=new_weight,
         activity_level=new_activity,
         fitness_goal=new_goal,
+        pace=new_pace,
         target_weight_kg=new_target_weight
     )
     new_calc = calculate_calories(calc_input)
-    new_target = new_calc.daily_calorie_target
+    new_target = payload.daily_calorie_target if payload.daily_calorie_target and payload.daily_calorie_target > 0 else new_calc.daily_calorie_target
     diff = new_target - previous_target
 
-    # Update profile in Supabase
+    # Update profile in Supabase (with fallback if pace column is not yet migrated)
     update_data = {
         "current_weight_kg": new_weight,
         "target_weight_kg": new_target_weight,
         "activity_level": new_activity,
         "fitness_goal": new_goal,
+        "pace": new_pace,
         "age": new_age,
         "height_cm": new_height,
         "daily_calorie_target": new_target,
@@ -104,7 +107,24 @@ async def update_goals_and_recalculate(
         "tdee": new_calc.tdee,
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
-    client.table("profiles").update(update_data).eq("id", user["id"]).execute()
+    try:
+        client.table("profiles").update(update_data).eq("id", user["id"]).execute()
+    except Exception as err:
+        err_msg = str(err).lower()
+        if "pace" in err_msg or "bmr" in err_msg or "tdee" in err_msg or "column" in err_msg:
+            safe_update = {
+                "current_weight_kg": new_weight,
+                "target_weight_kg": new_target_weight,
+                "activity_level": new_activity,
+                "fitness_goal": new_goal,
+                "age": new_age,
+                "height_cm": new_height,
+                "daily_calorie_target": new_target,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+            client.table("profiles").update(safe_update).eq("id", user["id"]).execute()
+        else:
+            raise err
 
     return GoalRecalculateResponse(
         previous_daily_calorie_target=previous_target,

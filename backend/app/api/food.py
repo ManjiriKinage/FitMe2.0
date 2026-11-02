@@ -281,7 +281,14 @@ async def create_food_log(
     if not client:
         raise HTTPException(status_code=500, detail="Database client not configured.")
 
-    log_time = payload.logged_at.isoformat() if payload.logged_at else datetime.now(timezone.utc).isoformat()
+    now_utc = datetime.now(timezone.utc)
+    if payload.logged_at and payload.logged_at.timestamp() > (now_utc.timestamp() + 120):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot log food entries for future dates. Only today and past dates are allowed."
+        )
+
+    log_time = payload.logged_at.isoformat() if payload.logged_at else now_utc.isoformat()
     food_name_clean = payload.food_name.strip()
 
     # Rapid double-submission duplicate check (5-second window)
@@ -399,7 +406,13 @@ async def update_food_log(
     if payload.carbohydrates_g is not None: update_data["carbohydrates_g"] = payload.carbohydrates_g
     if payload.fat_g is not None: update_data["fat_g"] = payload.fat_g
     if payload.meal_type is not None: update_data["meal_type"] = payload.meal_type
-    if payload.logged_at is not None: update_data["logged_at"] = payload.logged_at.isoformat()
+    if payload.logged_at is not None:
+        if payload.logged_at.timestamp() > (datetime.now(timezone.utc).timestamp() + 120):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot update food entry to a future date. Only today and past dates are allowed."
+            )
+        update_data["logged_at"] = payload.logged_at.isoformat()
 
     res = client.table("food_logs").update(update_data).eq("id", log_id).eq("user_id", user["id"]).execute()
     if not res.data:
@@ -515,7 +528,14 @@ async def confirm_and_save_meal(
 
     saved_logs = []
     tot_cals = 0.0
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_utc = datetime.now(timezone.utc)
+    if payload.logged_at and payload.logged_at.timestamp() > (now_utc.timestamp() + 120):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot log food entries for future dates. Only today and past dates are allowed."
+        )
+
+    now_iso = now_utc.isoformat()
     log_time = payload.logged_at.isoformat() if payload.logged_at else now_iso
 
     for item in payload.items:

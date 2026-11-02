@@ -198,7 +198,14 @@ async def confirm_scanned_meal(
         except Exception as dup_err:
             logger.debug(f"Idempotency check query skipped: {dup_err}")
 
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_utc = datetime.now(timezone.utc)
+    if payload.logged_at and payload.logged_at.timestamp() > (now_utc.timestamp() + 120):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot log food entries for future dates. Only today and past dates are allowed."
+        )
+
+    now_iso = now_utc.isoformat()
     log_time = payload.logged_at.isoformat() if payload.logged_at else now_iso
     saved_logs = []
     total_cals = 0.0

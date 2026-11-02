@@ -1,25 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
-import { UserProfile, ActivityLevelType, FitnessGoalType, GoalRecalculateResponse } from "@/types";
-import Navbar from "@/components/Navbar";
 import {
-  Target,
-  ArrowRight,
-  TrendingUp,
-  TrendingDown,
-  Sparkles,
-  Info,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  Scale,
-  Activity,
-  Heart
-} from "lucide-react";
+  UserProfile,
+  ActivityLevelType,
+  FitnessGoalType,
+  PaceType,
+  GoalRecalculateResponse,
+} from "@/types";
+import Navbar from "@/components/Navbar";
+import { calculateDailyTarget, Pace } from "@/lib/nutrition";
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 
 export default function GoalsPage() {
   const router = useRouter();
@@ -29,35 +23,79 @@ export default function GoalsPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   // Form Fields
-  const [currentWeight, setCurrentWeight] = useState<number>(70);
-  const [targetWeight, setTargetWeight] = useState<string>("");
+  const [weightStr, setWeightStr] = useState<string>("70");
+  const [heightStr, setHeightStr] = useState<string>("170");
+  const [ageStr, setAgeStr] = useState<string>("25");
+  const [targetWeightStr, setTargetWeightStr] = useState<string>("65");
+  const [primaryGoal, setPrimaryGoal] = useState<"lose" | "maintain" | "gain">("lose");
+  const [pace, setPace] = useState<Pace>("steady");
   const [activityLevel, setActivityLevel] = useState<ActivityLevelType>("moderately_active");
-  const [fitnessGoal, setFitnessGoal] = useState<FitnessGoalType>("lose_weight");
-  const [age, setAge] = useState<number>(25);
-  const [heightCm, setHeightCm] = useState<number>(170);
 
-  // Recalculation Results Modal/Banner
-  const [recalcResult, setRecalcResult] = useState<GoalRecalculateResponse | null>(null);
+  // Custom Target override state
+  const [isCustomTargetOpen, setIsCustomTargetOpen] = useState(false);
+  const [customCaloriesStr, setCustomCaloriesStr] = useState<string>("");
+
+  // Feedback messages
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadGoals() {
       try {
         setLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         if (!session) {
           router.replace("/login");
           return;
         }
 
-        const res = await api.getGoals();
-        setProfile(res.profile);
-        setCurrentWeight(res.profile.current_weight_kg);
-        setTargetWeight(res.profile.target_weight_kg ? String(res.profile.target_weight_kg) : "");
-        setActivityLevel(res.profile.activity_level);
-        setFitnessGoal(res.profile.fitness_goal);
-        setAge(res.profile.age);
-        setHeightCm(res.profile.height_cm);
+        try {
+          const res = await api.getGoals();
+          const p = res.profile;
+          setProfile(p);
+          if (p.current_weight_kg) setWeightStr(String(p.current_weight_kg));
+          if (p.height_cm) setHeightStr(String(p.height_cm));
+          if (p.age) setAgeStr(String(p.age));
+          if (p.target_weight_kg) setTargetWeightStr(String(p.target_weight_kg));
+
+          // Map goal
+          if (p.fitness_goal === "gain_weight" || p.fitness_goal === "gain_muscle" || (p.fitness_goal as string) === "gain") {
+            setPrimaryGoal("gain");
+          } else if (p.fitness_goal === "maintain_weight" || (p.fitness_goal as string) === "maintain") {
+            setPrimaryGoal("maintain");
+          } else {
+            setPrimaryGoal("lose");
+          }
+
+          if (p.pace && (p.pace === "slow" || p.pace === "steady" || p.pace === "faster")) {
+            setPace(p.pace);
+          }
+
+          if (p.activity_level) {
+            setActivityLevel(p.activity_level);
+          }
+
+          if (p.daily_calorie_target) {
+            setCustomCaloriesStr(String(p.daily_calorie_target));
+          }
+        } catch (apiErr: any) {
+          console.warn("api.getGoals failed, falling back to direct Supabase profile:", apiErr);
+          const { data: directProfile } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", session.user.id)
+            .single();
+
+          if (directProfile) {
+            setProfile(directProfile as UserProfile);
+            if (directProfile.current_weight_kg) setWeightStr(String(directProfile.current_weight_kg));
+            if (directProfile.height_cm) setHeightStr(String(directProfile.height_cm));
+            if (directProfile.age) setAgeStr(String(directProfile.age));
+            if (directProfile.target_weight_kg) setTargetWeightStr(String(directProfile.target_weight_kg));
+          }
+        }
       } catch (err: any) {
         console.error("Error loading goals:", err);
       } finally {
@@ -68,37 +106,177 @@ export default function GoalsPage() {
     loadGoals();
   }, [router]);
 
-  const handleRecalculateAndSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Numeric parsers
+  const weight = parseFloat(weightStr) || 0;
+  const height = parseFloat(heightStr) || 0;
+  const age = parseInt(ageStr, 10) || 0;
+  const targetWeight = targetWeightStr.trim() ? parseFloat(targetWeightStr) : null;
+
+  // Direction validation for target weight
+  const isTargetWeightInvalid = useMemo(() => {
+    if (targetWeight == null || isNaN(targetWeight) || weight <= 0) return false;
+    if (primaryGoal === "lose" && targetWeight >= weight) return true;
+    if (primaryGoal === "gain" && targetWeight <= weight) return true;
+    return false;
+  }, [primaryGoal, targetWeight, weight]);
+
+  const targetWeightError = useMemo(() => {
+    if (!isTargetWeightInvalid || targetWeight == null) return null;
+    if (primaryGoal === "lose") {
+      return "Target weight must be below your current weight to lose weight.";
+    }
+    if (primaryGoal === "gain") {
+      return "Target weight must be above your current weight to gain weight.";
+    }
+    return null;
+  }, [isTargetWeightInvalid, primaryGoal, targetWeight]);
+
+  // Compute live target preview using the pure function (never blocked by profile loading)
+  const calculationResult = useMemo(() => {
+    if (weight <= 0 || height <= 0 || age <= 0) return null;
+
+    return calculateDailyTarget({
+      weight,
+      height,
+      age,
+      gender: profile?.gender || "female",
+      activity: activityLevel,
+      goal: primaryGoal === "lose" ? "lose_weight" : primaryGoal === "gain" ? "gain_weight" : "maintain_weight",
+      pace: primaryGoal === "maintain" ? "steady" : pace,
+      targetWeight: isTargetWeightInvalid ? null : targetWeight,
+    });
+  }, [weight, height, age, profile?.gender, activityLevel, primaryGoal, pace, isTargetWeightInvalid, targetWeight]);
+
+  // Estimated completion date string
+  const estimatedTargetDate = useMemo(() => {
+    if (!calculationResult || calculationResult.weeksToGoal == null) return null;
+    const now = new Date();
+    const targetDate = new Date(now.getTime() + calculationResult.weeksToGoal * 7 * 24 * 60 * 60 * 1000);
+    const day = targetDate.getDate();
+    const month = targetDate.toLocaleString("en-US", { month: "short" });
+    return `About ${calculationResult.weeksToGoal} weeks · around ${day} ${month}`;
+  }, [calculationResult]);
+
+  // Custom calories difference calculation
+  const customCaloriesNum = parseInt(customCaloriesStr, 10) || 0;
+  const isCustomFarFromRecommended = useMemo(() => {
+    if (!isCustomTargetOpen || !calculationResult || !customCaloriesNum) return false;
+    return Math.abs(customCaloriesNum - calculationResult.target) > 300;
+  }, [isCustomTargetOpen, calculationResult, customCaloriesNum]);
+
+  // Pace label helper
+  const paceKgPerWeek = pace === "slow" ? 0.25 : pace === "faster" ? 0.75 : 0.5;
+
+  // Save handler
+  const handleSave = async (overrideTarget?: number, redirectToHome: boolean = false) => {
     setSaving(true);
     setErrorMsg(null);
+    setSuccessMsg(null);
 
     try {
-      const res = await api.recalculateGoals({
-        current_weight_kg: Number(currentWeight),
-        target_weight_kg: targetWeight ? Number(targetWeight) : null,
-        activity_level: activityLevel,
-        fitness_goal: fitnessGoal,
-        age: Number(age),
-        height_cm: Number(heightCm),
-      });
+      const finalGoal: FitnessGoalType =
+        primaryGoal === "lose"
+          ? "lose_weight"
+          : primaryGoal === "gain"
+          ? "gain_weight"
+          : "maintain_weight";
 
-      setRecalcResult(res);
-      // Update local profile target
-      if (profile) {
-        setProfile({
-          ...profile,
-          daily_calorie_target: res.new_daily_calorie_target,
-          current_weight_kg: Number(currentWeight),
-          target_weight_kg: targetWeight ? Number(targetWeight) : null,
-          activity_level: activityLevel,
-          fitness_goal: fitnessGoal,
-          age: Number(age),
-          height_cm: Number(heightCm),
-        });
+      const calorieTargetToSave = overrideTarget !== undefined
+        ? overrideTarget
+        : isCustomTargetOpen && customCaloriesNum > 500
+        ? customCaloriesNum
+        : calculationResult?.target || 0;
+
+      const payload: Record<string, any> = {
+        current_weight_kg: weight,
+        target_weight_kg: isTargetWeightInvalid ? null : targetWeight,
+        activity_level: activityLevel,
+        fitness_goal: finalGoal,
+        age: age,
+        height_cm: height,
+        pace: primaryGoal === "maintain" ? "steady" : pace,
+      };
+
+      if (calorieTargetToSave > 0) {
+        payload.daily_calorie_target = calorieTargetToSave;
+      }
+
+      // 1. Save via Backend API
+      let newDailyTarget = calorieTargetToSave;
+      let newBmr = calculationResult?.bmr;
+      let newTdee = calculationResult?.tdee;
+
+      try {
+        const res = await api.recalculateGoals(payload);
+        if (res.new_daily_calorie_target) newDailyTarget = res.new_daily_calorie_target;
+        if (res.calculation_details?.bmr) newBmr = res.calculation_details.bmr;
+        if (res.calculation_details?.tdee) newTdee = res.calculation_details.tdee;
+      } catch (apiErr: any) {
+        console.warn("api.recalculateGoals failed, falling back to direct Supabase update:", apiErr);
+      }
+
+      // 2. Also update Supabase directly for guaranteed instant consistency
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const directUpdate: Record<string, any> = {
+            current_weight_kg: weight,
+            target_weight_kg: isTargetWeightInvalid ? null : targetWeight,
+            activity_level: activityLevel,
+            fitness_goal: finalGoal,
+            age: age,
+            height_cm: height,
+            daily_calorie_target: newDailyTarget,
+            updated_at: new Date().toISOString(),
+          };
+          if (newBmr) directUpdate.bmr = newBmr;
+          if (newTdee) directUpdate.tdee = newTdee;
+
+          const { error: directErr } = await supabase.from("profiles").update(directUpdate).eq("id", user.id);
+          if (directErr) {
+            console.warn("Direct Supabase update error, retrying with core fields:", directErr);
+            delete directUpdate.bmr;
+            delete directUpdate.tdee;
+            await supabase.from("profiles").update(directUpdate).eq("id", user.id);
+          }
+        }
+      } catch (directErr) {
+        console.warn("Direct Supabase update error:", directErr);
+      }
+
+      // 3. Persist to localStorage and dispatch event for instant dashboard sync
+      if (typeof window !== "undefined") {
+        localStorage.setItem("fitme_daily_calorie_target", String(newDailyTarget));
+        localStorage.setItem("fitme_fitness_goal", finalGoal);
+        localStorage.setItem("fitme_current_weight_kg", String(weight));
+        if (newBmr) localStorage.setItem("fitme_bmr", String(newBmr));
+        if (newTdee) localStorage.setItem("fitme_tdee", String(newTdee));
+        window.dispatchEvent(new Event("fitme_goals_updated"));
+      }
+
+      setSuccessMsg("Goal updated successfully! Target saved to dashboard.");
+      
+      // Update local profile state
+      setProfile((prev) => ({
+        ...(prev || ({} as any)),
+        current_weight_kg: weight,
+        target_weight_kg: isTargetWeightInvalid ? null : targetWeight,
+        activity_level: activityLevel,
+        fitness_goal: finalGoal,
+        age: age,
+        height_cm: height,
+        pace: pace,
+        daily_calorie_target: newDailyTarget,
+        bmr: newBmr,
+        tdee: newTdee,
+      }));
+
+      // If user clicked "Use this target", navigate to dashboard immediately
+      if (redirectToHome) {
+        router.push("/home");
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Failed to recalculate goals.");
+      setErrorMsg(err.message || "Failed to update goals.");
     } finally {
       setSaving(false);
     }
@@ -106,233 +284,494 @@ export default function GoalsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-cream flex items-center justify-center">
+      <div className="min-h-screen bg-[#faf9f6] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-10 h-10 animate-spin text-sage" />
-          <p className="text-sm font-semibold text-charcoal/70">Loading goal parameters...</p>
+          <Loader2 className="w-10 h-10 animate-spin text-[#7c9a7e]" />
+          <p className="text-sm font-semibold text-[#22332d]/70">
+            Loading your goals...
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-cream flex flex-col md:flex-row text-charcoal selection:bg-sage/20 selection:text-charcoal">
+    <div className="min-h-screen bg-[#faf9f6] flex flex-col md:flex-row gap-6 p-4 sm:p-5 lg:p-6 text-[#22332d] selection:bg-[#7c9a7e]/20 selection:text-[#22332d]">
+      {/* Sidebar Navigation */}
       <Navbar userFullName={profile?.full_name} />
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full pb-24 md:pb-8">
-        <div className="mb-8">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-mint text-charcoal text-xs font-bold mb-2">
-            <Target className="w-4 h-4 text-sage" />
-            <span>Goal Adjustment & Calorie Recalculation</span>
-          </div>
-          <h1 className="text-3xl font-extrabold text-charcoal tracking-tight">Set Up Goals</h1>
-          <p className="text-sm text-charcoal/60 mt-1 max-w-2xl">
-            Update your weight, target weight, activity, and primary fitness goal. When you save, FitMe recalculates your daily recommendation without modifying historical food logs.
+      {/* Main Content Area */}
+      <main className="flex-1 min-w-0 max-w-[1100px] flex flex-col p-0 sm:py-2 mx-auto w-full">
+        <header className="mb-6">
+          <h1 className="text-[34px] sm:text-[36px] font-bold text-[#22332d] tracking-tight">
+            Set up goals
+          </h1>
+          <p className="text-[14px] text-[#5b6b64] mt-2">
+            Update your details and we&apos;ll recalculate your daily target. Past food logs stay unchanged.
           </p>
-        </div>
 
-        {errorMsg && (
-          <div className="mb-6 p-4 rounded-3xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
+          {errorMsg && (
+            <div
+              role="alert"
+              className="mt-4 p-3.5 rounded-[14px] bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2"
+            >
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
-        {/* Recalculation Results Comparison Banner */}
-        {recalcResult && (
-          <div className="mb-8 p-6 sm:p-7 rounded-4xl bg-white border-2 border-sage/40 shadow-soft-lg animate-fade-in space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-charcoal/5">
-              <span className="text-xs font-bold uppercase tracking-wider text-sage-800 flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-sage" />
-                Calorie Recommendation Recalculated
-              </span>
-              <span className="text-xs font-semibold px-3 py-1 rounded-full bg-mint text-charcoal">
-                Historical logs preserved
-              </span>
+          {successMsg && (
+            <div
+              role="status"
+              className="mt-4 p-3.5 rounded-[14px] bg-[#eaf4fd] border border-[#cfe5f7] text-[#22332d] text-xs flex items-center justify-between gap-2"
+            >
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#7c9a7e] flex-shrink-0" />
+                <span>{successMsg}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => router.push("/home")}
+                className="font-semibold text-[#22332d] underline hover:text-[#7c9a7e] flex-shrink-0 ml-2"
+              >
+                Go to Dashboard &rarr;
+              </button>
+            </div>
+          )}
+        </header>
+
+        {/* 2-Column Responsive Layout: Left Form Card (1.5fr) + Right Dark Recommended Card (1fr) */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-6 items-start">
+          {/* Left Form Card */}
+          <div className="bg-white rounded-[28px] p-6 sm:p-8 shadow-sm border border-[#dfe6e1]/40">
+            {/* BODY SECTION */}
+            <div className="text-[12px] font-bold tracking-[0.08em] text-[#5b6b64] uppercase mb-3">
+              BODY
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+              <label className="block">
+                <span className="text-[13px] font-semibold text-[#3a4a43]">
+                  Current weight (kg)
+                </span>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="20"
+                  max="300"
+                  value={weightStr}
+                  onChange={(e) => setWeightStr(e.target.value)}
+                  placeholder="70"
+                  className="w-full h-12 mt-1.5 px-4 rounded-[14px] border border-[#dfe6e1] bg-white text-[15px] font-medium text-[#22332d] focus:outline-none focus:border-[#7c9a7e] transition-colors"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-[13px] font-semibold text-[#3a4a43]">
+                  Height (cm)
+                </span>
+                <input
+                  type="number"
+                  step="1"
+                  min="50"
+                  max="250"
+                  value={heightStr}
+                  onChange={(e) => setHeightStr(e.target.value)}
+                  placeholder="170"
+                  className="w-full h-12 mt-1.5 px-4 rounded-[14px] border border-[#dfe6e1] bg-white text-[15px] font-medium text-[#22332d] focus:outline-none focus:border-[#7c9a7e] transition-colors"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-[13px] font-semibold text-[#3a4a43]">
+                  Age (years)
+                </span>
+                <input
+                  type="number"
+                  step="1"
+                  min="10"
+                  max="120"
+                  value={ageStr}
+                  onChange={(e) => setAgeStr(e.target.value)}
+                  placeholder="25"
+                  className="w-full h-12 mt-1.5 px-4 rounded-[14px] border border-[#dfe6e1] bg-white text-[15px] font-medium text-[#22332d] focus:outline-none focus:border-[#7c9a7e] transition-colors"
+                />
+              </label>
             </div>
 
-            {/* Old vs New Target Visualizer */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
-              <div className="p-4 rounded-3xl bg-cream/70 border border-charcoal/5 text-center">
-                <span className="text-xs font-bold text-charcoal/50 uppercase block mb-1">Previous Target</span>
-                <span className="text-2xl font-black text-charcoal/70">
-                  {recalcResult.previous_daily_calorie_target} <span className="text-xs font-normal">kcal</span>
-                </span>
+            {/* GOAL SECTION */}
+            <div className="text-[12px] font-bold tracking-[0.08em] text-[#5b6b64] uppercase mb-3">
+              GOAL
+            </div>
+            <div className="space-y-4">
+              {/* Target weight (optional) */}
+              <div>
+                <label className="block">
+                  <span className="text-[13px] font-semibold text-[#3a4a43]">
+                    Target weight (kg, optional)
+                  </span>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="20"
+                    max="300"
+                    value={targetWeightStr}
+                    onChange={(e) => setTargetWeightStr(e.target.value)}
+                    placeholder="e.g. 65"
+                    className={`w-full h-12 mt-1.5 px-4 rounded-[14px] border bg-white text-[15px] font-medium text-[#22332d] focus:outline-none transition-colors ${
+                      targetWeightError ? "border-red-400 focus:border-red-500" : "border-[#dfe6e1] focus:border-[#7c9a7e]"
+                    }`}
+                  />
+                </label>
+                {targetWeightError && (
+                  <p className="text-[12px] text-red-600 font-medium mt-1.5">
+                    {targetWeightError}
+                  </p>
+                )}
               </div>
 
-              <div className="flex items-center justify-center">
-                <div className="px-4 py-2 rounded-2xl bg-charcoal text-cream font-bold text-xs flex items-center gap-2 shadow-sm">
-                  {recalcResult.difference >= 0 ? (
-                    <>
-                      <TrendingUp className="w-4 h-4 text-sage" />
-                      <span>+{recalcResult.difference} kcal</span>
-                    </>
-                  ) : (
-                    <>
-                      <TrendingDown className="w-4 h-4 text-amber-300" />
-                      <span>{recalcResult.difference} kcal</span>
-                    </>
-                  )}
+              {/* Primary Goal Segmented Control */}
+              <div>
+                <span className="text-[13px] font-semibold text-[#3a4a43] block mb-1.5">
+                  Primary goal
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPrimaryGoal("lose")}
+                    className={`flex-1 py-3 px-2 text-center rounded-[14px] border font-semibold text-[14px] transition-all ${
+                      primaryGoal === "lose"
+                        ? "bg-[#22332d] text-white border-[#22332d]"
+                        : "bg-white text-[#22332d] border-[#dfe6e1] hover:bg-[#f6f9f7]"
+                    }`}
+                  >
+                    Lose weight
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPrimaryGoal("maintain")}
+                    className={`flex-1 py-3 px-2 text-center rounded-[14px] border font-semibold text-[14px] transition-all ${
+                      primaryGoal === "maintain"
+                        ? "bg-[#22332d] text-white border-[#22332d]"
+                        : "bg-white text-[#22332d] border-[#dfe6e1] hover:bg-[#f6f9f7]"
+                    }`}
+                  >
+                    Maintain
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPrimaryGoal("gain")}
+                    className={`flex-1 py-3 px-2 text-center rounded-[14px] border font-semibold text-[14px] transition-all ${
+                      primaryGoal === "gain"
+                        ? "bg-[#22332d] text-white border-[#22332d]"
+                        : "bg-white text-[#22332d] border-[#dfe6e1] hover:bg-[#f6f9f7]"
+                    }`}
+                  >
+                    Gain weight
+                  </button>
                 </div>
               </div>
 
-              <div className="p-4 rounded-3xl bg-mint border border-sage/30 text-center">
-                <span className="text-xs font-bold text-charcoal/60 uppercase block mb-1">New Target</span>
-                <span className="text-3xl font-black text-charcoal">
-                  {recalcResult.new_daily_calorie_target} <span className="text-xs font-normal text-charcoal/70">kcal/day</span>
+              {/* Pace Segmented Control - Hidden when primaryGoal === 'maintain' */}
+              {primaryGoal !== "maintain" && (
+                <div>
+                  <span className="text-[13px] font-semibold text-[#3a4a43] block mb-1.5">
+                    Pace{" "}
+                    <span className="text-[#5b6b64] font-normal">
+                      · how fast you want to {primaryGoal === "lose" ? "lose" : "gain"}
+                    </span>
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPace("slow")}
+                      className={`flex-1 py-2.5 px-2 text-center rounded-[14px] border font-semibold text-[14px] transition-all ${
+                        pace === "slow"
+                          ? "bg-[#22332d] text-white border-[#22332d]"
+                          : "bg-white text-[#22332d] border-[#dfe6e1] hover:bg-[#f6f9f7]"
+                      }`}
+                    >
+                      Slow
+                      <small className={`block text-[11px] font-normal mt-0.5 ${pace === "slow" ? "text-white/80" : "text-[#5b6b64]"}`}>
+                        0.25 kg/week
+                      </small>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPace("steady")}
+                      className={`flex-1 py-2.5 px-2 text-center rounded-[14px] border font-semibold text-[14px] transition-all ${
+                        pace === "steady"
+                          ? "bg-[#22332d] text-white border-[#22332d]"
+                          : "bg-white text-[#22332d] border-[#dfe6e1] hover:bg-[#f6f9f7]"
+                      }`}
+                    >
+                      Steady
+                      <small className={`block text-[11px] font-normal mt-0.5 ${pace === "steady" ? "text-white/80" : "text-[#5b6b64]"}`}>
+                        0.5 kg/week · Recommended
+                      </small>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPace("faster")}
+                      className={`flex-1 py-2.5 px-2 text-center rounded-[14px] border font-semibold text-[14px] transition-all ${
+                        pace === "faster"
+                          ? "bg-[#22332d] text-white border-[#22332d]"
+                          : "bg-white text-[#22332d] border-[#dfe6e1] hover:bg-[#f6f9f7]"
+                      }`}
+                    >
+                      Faster
+                      <small className={`block text-[11px] font-normal mt-0.5 ${pace === "faster" ? "text-white/80" : "text-[#5b6b64]"}`}>
+                        0.75 kg/week
+                      </small>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Activity Level Segmented 2x2 Grid */}
+              <div>
+                <span className="text-[13px] font-semibold text-[#3a4a43] block mb-1.5">
+                  Activity level
                 </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActivityLevel("sedentary")}
+                    className={`py-3 px-3 text-center rounded-[14px] border font-semibold text-[14px] transition-all ${
+                      activityLevel === "sedentary"
+                        ? "bg-[#22332d] text-white border-[#22332d]"
+                        : "bg-white text-[#22332d] border-[#dfe6e1] hover:bg-[#f6f9f7]"
+                    }`}
+                  >
+                    Sedentary
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActivityLevel("lightly_active")}
+                    className={`py-3 px-3 text-center rounded-[14px] border font-semibold text-[14px] transition-all ${
+                      activityLevel === "lightly_active"
+                        ? "bg-[#22332d] text-white border-[#22332d]"
+                        : "bg-white text-[#22332d] border-[#dfe6e1] hover:bg-[#f6f9f7]"
+                    }`}
+                  >
+                    Light · 1–3 days
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActivityLevel("moderately_active")}
+                    className={`py-3 px-3 text-center rounded-[14px] border font-semibold text-[14px] transition-all ${
+                      activityLevel === "moderately_active"
+                        ? "bg-[#22332d] text-white border-[#22332d]"
+                        : "bg-white text-[#22332d] border-[#dfe6e1] hover:bg-[#f6f9f7]"
+                    }`}
+                  >
+                    Moderate · 3–5 days
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActivityLevel("very_active")}
+                    className={`py-3 px-3 text-center rounded-[14px] border font-semibold text-[14px] transition-all ${
+                      activityLevel === "very_active"
+                        ? "bg-[#22332d] text-white border-[#22332d]"
+                        : "bg-white text-[#22332d] border-[#dfe6e1] hover:bg-[#f6f9f7]"
+                    }`}
+                  >
+                    Very active · 6–7 days
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Why it changed explanation */}
-            <div className="bg-cream/60 rounded-2xl p-4 text-xs text-charcoal/80 space-y-2 border border-charcoal/5">
-              <div className="font-bold text-charcoal flex items-center gap-1.5">
-                <Info className="w-4 h-4 text-sage" />
-                <span>Why your recommendation changed:</span>
+            {/* Recalculate & save goal button */}
+            <button
+              type="button"
+              disabled={saving || !calculationResult}
+              onClick={() => handleSave()}
+              className="w-full h-[52px] rounded-full bg-[#22332d] hover:bg-[#182520] text-white font-semibold text-[15px] mt-7 flex items-center justify-center transition-colors disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Saving goal...
+                </>
+              ) : (
+                "Recalculate & save goal"
+              )}
+            </button>
+          </div>
+
+          {/* Right Dark Card "Recommended for you" */}
+          <div className="bg-[#22332d] text-white rounded-[28px] p-7 shadow-soft self-start">
+            <div className="text-[12px] font-semibold tracking-[0.08em] text-[#b7cdb9] uppercase">
+              RECOMMENDED FOR YOU
+            </div>
+
+            {/* Big Target Number */}
+            <div className="text-[52px] font-bold text-white mt-2 leading-none">
+              {calculationResult?.target ? (
+                <>
+                  {calculationResult.target}{" "}
+                  <span className="text-[18px] font-medium text-[#b7cdb9]">kcal/day</span>
+                </>
+              ) : (
+                "—"
+              )}
+            </div>
+
+            <p className="text-[14px] text-[#b7cdb9] mt-2">
+              Based on your current weight, height, age and activity
+            </p>
+
+            {/* Safety Floor note */}
+            {calculationResult?.floorApplied && (
+              <div className="mt-3 p-3 rounded-[14px] bg-[#2d4238] border border-[#7c9a7e]/40 text-[#dfe9e2] text-xs">
+                This is the lowest safe target, so we&apos;ve set it to {calculationResult.target} kcal.
               </div>
-              <ul className="list-disc list-inside space-y-1 text-charcoal/70 pl-2">
-                {recalcResult.change_reasons.map((r, i) => (
-                  <li key={i}>{r}</li>
-                ))}
-              </ul>
-              <p className="pt-2 text-charcoal/80 leading-relaxed font-medium">
-                {recalcResult.calculation_details.explanation}
-              </p>
+            )}
+
+            {/* Macros Tiles Grid (Carbs, Protein, Fats) */}
+            <div className="grid grid-cols-3 gap-2.5 mt-6">
+              <div className="bg-[#2d4238] rounded-[16px] p-3 text-center border border-[#3d5247]/30">
+                <small className="block text-[#b7cdb9] text-[12px] font-medium">Carbs</small>
+                <b className="text-[20px] font-bold text-white block mt-0.5">
+                  {calculationResult?.carbs ? `${calculationResult.carbs}g` : "—"}
+                </b>
+              </div>
+              <div className="bg-[#2d4238] rounded-[16px] p-3 text-center border border-[#3d5247]/30">
+                <small className="block text-[#b7cdb9] text-[12px] font-medium">Protein</small>
+                <b className="text-[20px] font-bold text-white block mt-0.5">
+                  {calculationResult?.protein ? `${calculationResult.protein}g` : "—"}
+                </b>
+              </div>
+              <div className="bg-[#2d4238] rounded-[16px] p-3 text-center border border-[#3d5247]/30">
+                <small className="block text-[#b7cdb9] text-[12px] font-medium">Fats</small>
+                <b className="text-[20px] font-bold text-white block mt-0.5">
+                  {calculationResult?.fats ? `${calculationResult.fats}g` : "—"}
+                </b>
+              </div>
+            </div>
+
+            {/* How it's worked out */}
+            <div className="border-t border-[#3d5247] mt-5 pt-4 text-[13px] text-[#b7cdb9] leading-[1.7]">
+              <div>
+                Resting burn (BMR){" "}
+                <b className="text-white">
+                  {calculationResult?.bmr ? calculationResult.bmr.toLocaleString() : "—"}
+                </b>
+              </div>
+              <div>
+                With activity (TDEE){" "}
+                <b className="text-white">
+                  {calculationResult?.tdee ? calculationResult.tdee.toLocaleString() : "—"}
+                </b>
+              </div>
+              {calculationResult && (
+                <div>
+                  {primaryGoal === "lose" && (
+                    <>
+                      Daily deficit <b className="text-white">−{calculationResult.dailyChange}</b> → about {paceKgPerWeek} kg/week
+                    </>
+                  )}
+                  {primaryGoal === "gain" && (
+                    <>
+                      Daily surplus <b className="text-white">+{calculationResult.dailyChange}</b> → about {paceKgPerWeek} kg/week
+                    </>
+                  )}
+                  {primaryGoal === "maintain" && (
+                    <>
+                      Energy balance <b className="text-white">0</b> → maintenance
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Estimated time to reach target weight box */}
+            {estimatedTargetDate && !isTargetWeightInvalid && (
+              <div className="bg-[#2d4238] rounded-[16px] p-3.5 mt-4 text-left border border-[#3d5247]/30">
+                <small className="block text-[#b7cdb9] text-[12px]">
+                  Estimated time to reach {targetWeight} kg
+                </small>
+                <b className="text-[15px] font-bold text-white block mt-0.5">
+                  {estimatedTargetDate}
+                </b>
+              </div>
+            )}
+
+            {/* "Use this target" button */}
+            <button
+              type="button"
+              disabled={saving || !calculationResult}
+              onClick={() => handleSave(calculationResult?.target, true)}
+              className="w-full h-[52px] rounded-full bg-[#7c9a7e] hover:bg-[#6e8a70] text-white font-semibold text-[15px] mt-4 flex items-center justify-center transition-colors disabled:opacity-50"
+            >
+              {saving ? "Saving & updating dashboard..." : "Use this target"}
+            </button>
+
+            {/* Footnote */}
+            <p className="text-[12px] text-[#b7cdb9] mt-3.5 leading-[1.5]">
+              Updates as you edit. Estimates only, not medical advice. Never set below 1,200 kcal.
+            </p>
+
+            {/* "Set my own target" link and collapsible input */}
+            <div className="border-t border-[#3d5247] mt-5 pt-4">
+              <button
+                type="button"
+                onClick={() => setIsCustomTargetOpen((prev) => !prev)}
+                className="text-[13px] text-[#b7cdb9] hover:text-white font-medium inline-flex items-center gap-1 transition-colors underline underline-offset-2"
+              >
+                <span>{isCustomTargetOpen ? "Hide custom calorie target" : "Set my own target"}</span>
+                {isCustomTargetOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+
+              {isCustomTargetOpen && (
+                <div className="mt-3 p-3.5 rounded-[16px] bg-[#2d4238] border border-[#3d5247]/50 space-y-2.5">
+                  <label className="block">
+                    <span className="text-[12px] font-semibold text-[#b7cdb9] block">
+                      Custom Daily Target (kcal)
+                    </span>
+                    <input
+                      type="number"
+                      step="50"
+                      min="500"
+                      max="10000"
+                      value={customCaloriesStr}
+                      onChange={(e) => setCustomCaloriesStr(e.target.value)}
+                      placeholder={calculationResult?.target ? String(calculationResult.target) : "2000"}
+                      className="w-full h-10 mt-1 px-3 rounded-[12px] border border-[#3d5247] bg-[#22332d] text-white text-[14px] font-semibold focus:outline-none focus:border-[#7c9a7e]"
+                    />
+                  </label>
+
+                  {isCustomFarFromRecommended && calculationResult && (
+                    <p className="text-[12px] text-[#e0cf87] font-medium leading-snug">
+                      This is far from the recommended {calculationResult.target} kcal.
+                    </p>
+                  )}
+
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={saving || !customCaloriesNum}
+                      onClick={() => handleSave(customCaloriesNum)}
+                      className="flex-1 py-2 px-3 rounded-full bg-[#7c9a7e] hover:bg-[#6e8a70] text-white text-[13px] font-semibold transition-colors disabled:opacity-50"
+                    >
+                      Save custom target
+                    </button>
+                    {calculationResult && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomCaloriesStr(String(calculationResult.target));
+                        }}
+                        className="py-2 px-3 rounded-full bg-[#22332d] hover:bg-[#182520] text-[#b7cdb9] text-[13px] font-medium border border-[#3d5247] transition-colors"
+                      >
+                        Reset to {calculationResult.target}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        )}
-
-        {/* Goals Form */}
-        <div className="bg-white rounded-4xl p-6 sm:p-8 border border-mint shadow-soft">
-          <form onSubmit={handleRecalculateAndSave} className="space-y-6">
-            {/* Weight inputs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-charcoal/70 mb-2 flex items-center gap-1.5">
-                  <Scale className="w-4 h-4 text-sage" />
-                  Current Weight (kg)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  required
-                  min={20}
-                  max={500}
-                  value={currentWeight}
-                  onChange={(e) => setCurrentWeight(Number(e.target.value))}
-                  className="w-full px-4 py-3 bg-cream/60 rounded-2xl border border-charcoal/10 focus:border-sage outline-none text-charcoal text-sm font-semibold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-charcoal/70 mb-2 flex items-center gap-1.5">
-                  <Target className="w-4 h-4 text-sage" />
-                  Target Weight (kg, optional)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min={20}
-                  max={500}
-                  placeholder="e.g. 65"
-                  value={targetWeight}
-                  onChange={(e) => setTargetWeight(e.target.value)}
-                  className="w-full px-4 py-3 bg-cream/60 rounded-2xl border border-charcoal/10 focus:border-sage outline-none text-charcoal text-sm font-semibold"
-                />
-              </div>
-            </div>
-
-            {/* Goal & Activity inputs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-charcoal/70 mb-2 flex items-center gap-1.5">
-                  <Heart className="w-4 h-4 text-sage" />
-                  Primary Fitness Goal
-                </label>
-                <select
-                  value={fitnessGoal}
-                  onChange={(e) => setFitnessGoal(e.target.value as FitnessGoalType)}
-                  className="w-full px-4 py-3 bg-cream/60 rounded-2xl border border-charcoal/10 focus:border-sage outline-none text-charcoal text-sm font-semibold"
-                >
-                  <option value="lose_weight">Lose Weight (Sustainable Deficit)</option>
-                  <option value="maintain_weight">Maintain Weight (TDEE Maintenance)</option>
-                  <option value="gain_muscle">Gain Muscle (Lean Surplus + High Protein)</option>
-                  <option value="gain_weight">Gain Weight (Calorie Surplus)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-charcoal/70 mb-2 flex items-center gap-1.5">
-                  <Activity className="w-4 h-4 text-sage" />
-                  Activity Level
-                </label>
-                <select
-                  value={activityLevel}
-                  onChange={(e) => setActivityLevel(e.target.value as ActivityLevelType)}
-                  className="w-full px-4 py-3 bg-cream/60 rounded-2xl border border-charcoal/10 focus:border-sage outline-none text-charcoal text-sm font-semibold"
-                >
-                  <option value="sedentary">Sedentary (Desk job, little to no exercise)</option>
-                  <option value="lightly_active">Lightly Active (1–3 days light exercise)</option>
-                  <option value="moderately_active">Moderately Active (3–5 days moderate workout)</option>
-                  <option value="very_active">Very Active (6–7 days hard workout)</option>
-                  <option value="extra_active">Extra Active (Very heavy labor / 2x training)</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Biological Metrics */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-charcoal/5">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-charcoal/70 mb-2">
-                  Age (Years)
-                </label>
-                <input
-                  type="number"
-                  required
-                  min={10}
-                  max={120}
-                  value={age}
-                  onChange={(e) => setAge(Number(e.target.value))}
-                  className="w-full px-4 py-3 bg-cream/60 rounded-2xl border border-charcoal/10 focus:border-sage outline-none text-charcoal text-sm font-semibold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-charcoal/70 mb-2">
-                  Height (cm)
-                </label>
-                <input
-                  type="number"
-                  required
-                  min={50}
-                  max={300}
-                  value={heightCm}
-                  onChange={(e) => setHeightCm(Number(e.target.value))}
-                  className="w-full px-4 py-3 bg-cream/60 rounded-2xl border border-charcoal/10 focus:border-sage outline-none text-charcoal text-sm font-semibold"
-                />
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full py-4 px-6 bg-charcoal text-cream font-bold rounded-2xl hover:bg-charcoal-light transition shadow-soft flex items-center justify-center gap-2 text-sm disabled:opacity-75"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin text-sage" />
-                    <span>Recalculating Target...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 text-sage" />
-                    <span>Recalculate & Save Goal</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
         </div>
       </main>
     </div>

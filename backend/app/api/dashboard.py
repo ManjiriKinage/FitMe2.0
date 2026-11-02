@@ -32,6 +32,18 @@ async def get_dashboard(
         raise HTTPException(status_code=500, detail="Database client not configured.")
 
     user_tz_name = tz or x_timezone or "UTC"
+    try:
+        user_tz = zoneinfo.ZoneInfo(user_tz_name)
+    except Exception:
+        user_tz = timezone.utc
+
+    today_str = datetime.now(user_tz).strftime("%Y-%m-%d")
+    if date and date > today_str:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Future dates are not allowed. Only today and past dates can be viewed or logged."
+        )
+
     summary = fetch_and_calculate_daily_dashboard(
         client=client,
         user_id=user["id"],

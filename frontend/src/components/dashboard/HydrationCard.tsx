@@ -24,7 +24,15 @@ export default function HydrationCard({ selectedDate }: HydrationCardProps) {
     }
   }, [selectedDate]);
 
+  const getTodayStr = () => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  };
+
+  const isFuture = selectedDate > getTodayStr();
+
   const handleCupClick = (index: number) => {
+    if (isFuture) return;
     const nextCups = index + 1 === cups ? index : index + 1;
     setCups(nextCups);
     try {
@@ -63,9 +71,10 @@ export default function HydrationCard({ selectedDate }: HydrationCardProps) {
             <button
               key={i}
               type="button"
+              disabled={isFuture}
               onClick={() => handleCupClick(i)}
               aria-label={`Cup ${i + 1} of 8, ${isFilled ? "filled" : "empty"}`}
-              className="p-1 rounded-lg hover:bg-[#2d4238] transition-colors focus:outline-none focus:ring-1 focus:ring-[#7c9a7e] flex items-center justify-center"
+              className="p-1 rounded-lg hover:bg-[#2d4238] transition-colors focus:outline-none focus:ring-1 focus:ring-[#7c9a7e] flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <svg
                 viewBox="0 0 24 24"

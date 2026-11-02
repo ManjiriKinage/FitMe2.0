@@ -49,6 +49,10 @@ export default function DashboardHomePage() {
   };
 
   const [selectedDate, setSelectedDate] = useState<string>(getTodayStr());
+  const todayStr = getTodayStr();
+
+  // Future dates strictly disallowed (only today and past allowed)
+  const isTodayOrFuture = selectedDate >= todayStr;
 
   const shiftDate = (days: number) => {
     const [y, m, d] = selectedDate.split("-").map(Number);
@@ -57,7 +61,13 @@ export default function DashboardHomePage() {
     const year = dateObj.getFullYear();
     const month = String(dateObj.getMonth() + 1).padStart(2, "0");
     const day = String(dateObj.getDate()).padStart(2, "0");
-    setSelectedDate(`${year}-${month}-${day}`);
+    const targetDate = `${year}-${month}-${day}`;
+
+    // Disallow future dates
+    if (targetDate > todayStr) {
+      return;
+    }
+    setSelectedDate(targetDate);
   };
 
   // Keep profile in ref to reuse across food logging and avoid unnecessary network round trips
@@ -92,13 +102,12 @@ export default function DashboardHomePage() {
         return;
       }
 
-      // Reuse already-loaded profile to avoid unnecessary requests; fetch only if not yet loaded
-      const profilePromise = profileRef.current
-        ? Promise.resolve(profileRef.current)
-        : api.getProfile().catch((err) => {
-            console.warn("Could not load profile:", err);
-            return null;
-          });
+      // Always fetch fresh profile so target updates from Goals are immediately visible
+      const profilePromise = api.getProfile().catch(async (err) => {
+        console.warn("Could not load profile via API, trying direct Supabase:", err);
+        const { data } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
+        return data as UserProfile | null;
+      });
 
       const dashboardPromise = api.getDashboard(selectedDate).catch((err) => {
         console.warn("Could not load dashboard:", err);
@@ -121,7 +130,13 @@ export default function DashboardHomePage() {
 
   useEffect(() => {
     loadData(!dashboard);
-  }, [loadData]);
+
+    const handleGoalsUpdated = () => {
+      loadData(false);
+    };
+    window.addEventListener("fitme_goals_updated", handleGoalsUpdated);
+    return () => window.removeEventListener("fitme_goals_updated", handleGoalsUpdated);
+  }, [loadData, dashboard]);
 
   const handleOpenAddFood = (mealType: MealType = "breakfast") => {
     setSelectedMealForAdd(mealType);
@@ -165,15 +180,57 @@ export default function DashboardHomePage() {
     );
   }
 
-  // Values calculation
+  // User's saved profile target ALWAYS takes precedence over old/stale dashboard fallback
+  const localTarget =
+    typeof window !== "undefined"
+      ? Number(localStorage.getItem("fitme_daily_calorie_target"))
+      : 0;
   const calorieTarget =
-    dashboard?.daily_calorie_target || profile?.daily_calorie_target || 2000;
+    profile?.daily_calorie_target ||
+    (localTarget > 0 ? localTarget : 0) ||
+    dashboard?.daily_calorie_target ||
+    0;
+
   const consumed = dashboard?.calories_consumed || 0;
   const remaining =
-    dashboard?.calories_remaining !== undefined
+    calorieTarget > 0
+      ? Math.max(0, calorieTarget - consumed)
+      : dashboard?.calories_remaining !== undefined
       ? dashboard.calories_remaining
       : calorieTarget;
-  const percentage = dashboard?.percentage_consumed || 0;
+  const percentage =
+    calorieTarget > 0
+      ? Math.min(100, Math.round((consumed / calorieTarget) * 100))
+      : dashboard?.percentage_consumed || 0;
+
+  // Dynamically compute evidence-based macro targets to keep in sync with active calorie target
+  const isLosing =
+    (profile?.fitness_goal as string) === "lose" ||
+    profile?.fitness_goal === "lose_weight";
+  const userWeight = profile?.current_weight_kg || 70;
+  const proteinTarget = Math.round(userWeight * (isLosing ? 1.6 : 1.2));
+  const fatTarget = Math.round((calorieTarget * 0.25) / 9);
+  const carbsTarget = Math.max(
+    0,
+    Math.round((calorieTarget * 0.75 - proteinTarget * 4) / 4)
+  );
+
+  const effectiveMacroTargets = calorieTarget > 0
+    ? {
+        carbohydrates_g: carbsTarget,
+        protein_g: proteinTarget,
+        fat_g: fatTarget,
+      }
+    : dashboard?.macro_targets;
+
+  const effectiveProfile = profile || (localTarget > 0 && typeof window !== "undefined" ? {
+    daily_calorie_target: localTarget,
+    fitness_goal: localStorage.getItem("fitme_fitness_goal") || undefined,
+    current_weight_kg: Number(localStorage.getItem("fitme_current_weight_kg")) || undefined,
+    bmr: Number(localStorage.getItem("fitme_bmr")) || undefined,
+    tdee: Number(localStorage.getItem("fitme_tdee")) || undefined,
+  } as any : null);
+
   const macroTotals = dashboard?.macro_totals || {
     calories: 0,
     protein_g: 0,
@@ -241,8 +298,14 @@ export default function DashboardHomePage() {
             <button
               type="button"
               onClick={() => shiftDate(1)}
+              disabled={isTodayOrFuture}
               aria-label="Next day"
-              className="w-8 h-8 rounded-full border-0 hover:bg-[#f6f9f7] text-[#22332d] font-bold text-lg flex items-center justify-center transition-colors focus:outline-none focus:ring-1 focus:ring-[#7c9a7e]"
+              title={isTodayOrFuture ? "Future dates are not allowed" : "Next day"}
+              className={`w-8 h-8 rounded-full border-0 font-bold text-lg flex items-center justify-center transition-colors focus:outline-none focus:ring-1 focus:ring-[#7c9a7e] ${
+                isTodayOrFuture
+                  ? "opacity-25 cursor-not-allowed text-[#5b6b64]/50 pointer-events-none"
+                  : "hover:bg-[#f6f9f7] text-[#22332d] cursor-pointer"
+              }`}
             >
               &rsaquo;
             </button>
@@ -293,10 +356,10 @@ export default function DashboardHomePage() {
             remaining={remaining}
             percentage={percentage}
             macroTotals={macroTotals}
-            macroTargets={dashboard?.macro_targets}
+            macroTargets={effectiveMacroTargets}
           />
 
-          <MetabolicOverviewCard profile={profile} />
+          <MetabolicOverviewCard profile={effectiveProfile} />
         </section>
 
         {/* Bottom Grid Row: Daily Calories Meals Breakdown (1.6fr) + Hydration (1fr) */}
@@ -317,6 +380,7 @@ export default function DashboardHomePage() {
       {isAddFoodOpen && (
         <FoodLogForm
           initialMealType={selectedMealForAdd}
+          selectedDate={selectedDate}
           onClose={() => setIsAddFoodOpen(false)}
           onSuccess={handleFoodSaved}
           onSwitchToScan={() => {
@@ -330,6 +394,7 @@ export default function DashboardHomePage() {
       {isScanMealOpen && (
         <MealScannerModal
           initialMealType={selectedMealForScan}
+          selectedDate={selectedDate}
           onClose={() => setIsScanMealOpen(false)}
           onSuccess={handleFoodSaved}
         />

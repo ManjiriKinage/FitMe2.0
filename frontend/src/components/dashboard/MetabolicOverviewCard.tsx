@@ -9,16 +9,19 @@ interface MetabolicOverviewCardProps {
 export default function MetabolicOverviewCard({ profile }: MetabolicOverviewCardProps) {
   const formatGoal = (goal?: string) => {
     switch (goal) {
+      case "lose":
       case "lose_weight":
-        return "Lose Weight";
+        return "Lose weight";
+      case "maintain":
       case "maintain_weight":
         return "Maintain";
-      case "gain_muscle":
-        return "Gain Muscle";
+      case "gain":
       case "gain_weight":
-        return "Gain Weight";
+        return "Gain weight";
+      case "gain_muscle":
+        return "Gain muscle";
       default:
-        return "Maintain";
+        return goal ? goal.replace(/_/g, " ") : "Maintain";
     }
   };
 
@@ -26,16 +29,18 @@ export default function MetabolicOverviewCard({ profile }: MetabolicOverviewCard
     switch (level) {
       case "sedentary":
         return "Sedentary";
+      case "light":
       case "lightly_active":
         return "Light";
+      case "moderate":
       case "moderately_active":
         return "Moderate";
       case "very_active":
-        return "Very Active";
+        return "Very active";
       case "extra_active":
-        return "Extra Active";
+        return "Extra active";
       default:
-        return "Moderate";
+        return level ? level.replace(/_/g, " ") : "Moderate";
     }
   };
 

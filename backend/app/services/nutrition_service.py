@@ -126,10 +126,26 @@ def fetch_and_calculate_daily_dashboard(
             tz_str = user_tz_name or "UTC"
         else:
             profile = p_res.data[0]
-            target_cals = int(profile.get("daily_calorie_target", 2000))
             fitness_goal = profile.get("fitness_goal", "maintain_weight")
             current_weight = float(profile.get("current_weight_kg", 70.0))
             tz_str = user_tz_name or profile.get("timezone") or "UTC"
+            target_cals = int(profile.get("daily_calorie_target") or 0)
+
+            if target_cals <= 0:
+                from app.schemas.user import CalorieCalculationInput
+                from app.services.calorie_calculator import calculate_calories
+                c_input = CalorieCalculationInput(
+                    age=int(profile.get("age", 25)),
+                    gender=str(profile.get("gender", "female")),
+                    height_cm=float(profile.get("height_cm", 170)),
+                    current_weight_kg=current_weight,
+                    activity_level=str(profile.get("activity_level", "moderately_active")),
+                    fitness_goal=fitness_goal,
+                    pace=str(profile.get("pace") or "steady"),
+                    target_weight_kg=float(profile["target_weight_kg"]) if profile.get("target_weight_kg") else None
+                )
+                rec = calculate_calories(c_input)
+                target_cals = rec.daily_calorie_target
 
         # Validate timezone
         try:
