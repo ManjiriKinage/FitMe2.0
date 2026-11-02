@@ -26,6 +26,7 @@ from app.schemas.food import (
 from app.services.nutrition_engine import nutrition_engine
 from app.services.nutrition_service import fetch_and_calculate_daily_dashboard
 from app.services.user_learning import UserPreferenceLearningEngine
+from app.services.food_ai import estimate_food_calories
 import time
 
 logger = logging.getLogger(__name__)
@@ -53,98 +54,168 @@ async def estimate_food(
     user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
-    Estimates calories and macronutrients for food descriptions.
-    Supports single items ('2 medium chapatis') or compound meals ('2 chapatis and 1 bowl of dal').
-    Processing Order:
-    1. Text normalization and compound multi-item sentence splitting.
-    2. Local INDB catalog search (exact, alias, token overlap).
-    3. Customary user-portion auto adjustment (from learning engine).
-    4. Deterministic per-100g and dish-specific serving calculation.
-    5. Disambiguation check & concise clarification question if multiple divergent candidates exist.
-    6. Bounded AI / clinical baseline fallback for uncataloged items.
+    Token-Saving Smart Food Estimator:
+    1. Checks user's own favorite_foods and past food_logs in Supabase first.
+       - If found: returns exact previously logged nutrition instantly (0 AI tokens consumed).
+       - Automatically scales calories & macros if a different quantity is requested (e.g. 2 vs 1).
+    2. If not found in user's history:
+       - Calls Google Gemini AI to analyze the food and estimate macros.
+    3. When the user confirms and logs the food, it enters food_logs so future searches
+       for this food are served from the database with zero token spend.
     """
-    client = get_supabase_admin_client(user) or get_supabase_anon_client()
-
-    try:
-        meal_res = await nutrition_engine.parse_and_calculate_meal(
-            payload.query,
-            user_id=user["id"],
-            client=client
-        )
-    except Exception as e:
+    query = payload.query.strip()
+    if not query:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Could not calculate nutrition: {str(e)}"
+            detail="Food description query cannot be empty."
         )
 
-    # Convert items to ParsedFoodItem schema
-    parsed_items = [
-        ParsedFoodItem(
-            food_name=it.selected_food_name,
-            quantity=it.quantity,
-            unit=it.serving_unit,
-            estimated_calories=it.total_calories,
-            protein_g=it.protein_g or 0.0,
-            carbohydrates_g=it.carbohydrates_g or 0.0,
-            fat_g=it.fat_g or 0.0,
-            fiber_g=it.fiber_g,
-            serving_weight_g=it.serving_weight_g,
-            nutrition_source=it.nutrition_source,
-            calculation_method=it.calculation_method,
-            validation_status=getattr(it, "validation_status", "verified"),
-            clarification_question=it.clarification_question,
-            uncertainty_note=it.uncertainty_flags[0] if it.uncertainty_flags else None,
-            assumptions=f"Calculated from {it.nutrition_source} ({it.serving_weight_g}g)." if it.serving_weight_g else None,
-            food_id=it.food_id,
-            profile_id=it.profile_id
-        )
-        for it in meal_res.items
-    ]
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
+    user_id = user["id"]
 
-    has_needs_review = any(it.validation_status == "needs_review" for it in parsed_items)
-    compound_uncertainty = next((it.uncertainty_note for it in parsed_items if it.uncertainty_note), None)
+    # Step A: Parse quantity, unit, and food term from query
+    try:
+        from app.services.nutrition_engine.matcher import parse_item_portion
+        requested_qty, requested_unit, food_term = parse_item_portion(query)
+    except Exception:
+        requested_qty, requested_unit, food_term = 1.0, "serving", query
 
-    if len(parsed_items) == 1:
-        first = parsed_items[0]
+    import re
+    clean_term = food_term.strip() if food_term else query
+    core_term = re.sub(r"^(small|medium|big|large)\s+", "", clean_term, flags=re.IGNORECASE).strip()
+    search_terms = [t for t in dict.fromkeys([clean_term, core_term, query]) if len(t) >= 2]
+
+    # Step B: Search in user's favorite_foods (highest priority cache)
+    cached_match = None
+    source_type = None
+
+    if client and search_terms:
+        for term in search_terms:
+            try:
+                fav_res = (
+                    client.table("favorite_foods")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .ilike("name", f"%{term}%")
+                    .limit(1)
+                    .execute()
+                )
+                if fav_res.data and len(fav_res.data) > 0:
+                    fav = fav_res.data[0]
+                    cached_match = {
+                        "food_name": fav["name"],
+                        "quantity": float(fav.get("quantity") or 1.0),
+                        "unit": fav.get("unit") or requested_unit or "serving",
+                        "calories": float(fav.get("calories") or 0.0),
+                        "protein": float(fav.get("protein") or 0.0),
+                        "carbs": float(fav.get("carbs") or 0.0),
+                        "fat": float(fav.get("fat") or 0.0),
+                    }
+                    source_type = "favorites"
+                    break
+            except Exception as e:
+                logger.debug(f"Favorites lookup skipped: {e}")
+
+    # Step C: Search in user's past food_logs (to save AI tokens)
+    if not cached_match and client and search_terms:
+        # 1. Direct ILIKE match across search terms
+        for term in search_terms:
+            try:
+                log_res = (
+                    client.table("food_logs")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .ilike("food_name", f"%{term}%")
+                    .order("logged_at", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+                if log_res.data and len(log_res.data) > 0:
+                    item = log_res.data[0]
+                    cached_match = {
+                        "food_name": item["food_name"],
+                        "quantity": float(item.get("quantity") or 1.0),
+                        "unit": item.get("unit") or requested_unit or "serving",
+                        "calories": float(item.get("estimated_calories") or 0.0),
+                        "protein": float(item.get("protein_g") or 0.0),
+                        "carbs": float(item.get("carbohydrates_g") or 0.0),
+                        "fat": float(item.get("fat_g") or 0.0),
+                    }
+                    source_type = "past_logs"
+                    break
+            except Exception as e:
+                logger.debug(f"Past food logs lookup skipped: {e}")
+
+        # 2. In-memory check on recent 50 logs (covers reverse substring: e.g. logged "chapati", query "1 medium chapati")
+        if not cached_match:
+            try:
+                recent_logs = (
+                    client.table("food_logs")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .order("logged_at", desc=True)
+                    .limit(50)
+                    .execute()
+                )
+                if recent_logs.data:
+                    q_lower = query.lower()
+                    for item in recent_logs.data:
+                        logged_name = (item.get("food_name") or "").strip().lower()
+                        if not logged_name:
+                            continue
+                        if logged_name in q_lower or any(t.lower() in logged_name for t in search_terms):
+                            cached_match = {
+                                "food_name": item["food_name"],
+                                "quantity": float(item.get("quantity") or 1.0),
+                                "unit": item.get("unit") or requested_unit or "serving",
+                                "calories": float(item.get("estimated_calories") or 0.0),
+                                "protein": float(item.get("protein_g") or 0.0),
+                                "carbs": float(item.get("carbohydrates_g") or 0.0),
+                                "fat": float(item.get("fat_g") or 0.0),
+                            }
+                            source_type = "past_logs"
+                            break
+            except Exception as e:
+                logger.debug(f"Recent food logs in-memory scan skipped: {e}")
+
+    # Step D: If found in history, return immediately with proportional scaling (0 AI TOKENS)
+    if cached_match and cached_match["calories"] > 0:
+        base_qty = cached_match["quantity"] if cached_match["quantity"] > 0 else 1.0
+        ratio = requested_qty / base_qty if requested_qty > 0 else 1.0
+
+        scaled_calories = round(cached_match["calories"] * ratio, 1)
+        scaled_protein = round(cached_match["protein"] * ratio, 1)
+        scaled_carbs = round(cached_match["carbs"] * ratio, 1)
+        scaled_fat = round(cached_match["fat"] * ratio, 1)
+
+        source_label = "your favorite foods" if source_type == "favorites" else "your past food logs"
+        logger.info(f"0-Token Cache Hit from {source_label} for: '{query}' -> '{cached_match['food_name']}'")
+
         return AIEstimateResponse(
-            food_name=first.food_name,
-            quantity=first.quantity,
-            unit=first.unit,
-            estimated_calories=first.estimated_calories,
-            protein_g=first.protein_g,
-            carbohydrates_g=first.carbohydrates_g,
-            fat_g=first.fat_g,
-            assumptions=first.assumptions or f"Calculated deterministically ({first.quantity} {first.unit}).",
-            uncertainty_note=first.uncertainty_note,
-            clarification_question=meal_res.clarification_question,
-            items=parsed_items,
-            has_ambiguity=meal_res.has_ambiguity,
-            needs_user_confirmation=True,
-            validation_status=first.validation_status,
-            food_id=first.food_id,
-            profile_id=first.profile_id
+            food_name=cached_match["food_name"],
+            quantity=requested_qty,
+            unit=cached_match["unit"],
+            estimated_calories=scaled_calories,
+            protein_g=scaled_protein,
+            carbohydrates_g=scaled_carbs,
+            fat_g=scaled_fat,
+            assumptions=f"Reused from {source_label} (scaled x{round(ratio, 2)} for {requested_qty} {cached_match['unit']}). Zero AI tokens consumed.",
+            uncertainty_note=None,
+            clarification_question=None,
+            validation_status="history_cached"
         )
-    else:
-        # Compound meal presentation
-        summary_title = " & ".join([it.food_name for it in parsed_items[:3]])
-        if len(parsed_items) > 3:
-            summary_title += f" + {len(parsed_items) - 3} more"
 
-        return AIEstimateResponse(
-            food_name=summary_title,
-            quantity=1.0,
-            unit="meal",
-            estimated_calories=meal_res.total_calories,
-            protein_g=meal_res.total_protein_g,
-            carbohydrates_g=meal_res.total_carbohydrates_g,
-            fat_g=meal_res.total_fat_g,
-            assumptions=f"Combined meal breakdown for {len(parsed_items)} items.",
-            uncertainty_note=compound_uncertainty,
-            clarification_question=meal_res.clarification_question,
-            items=parsed_items,
-            has_ambiguity=meal_res.has_ambiguity,
-            needs_user_confirmation=True,
-            validation_status="needs_review" if has_needs_review else "verified"
+    # Step E: If NOT found in history, call Google Gemini AI
+    try:
+        logger.info(f"Item not in user history. Calling Google Gemini AI for: '{query}'")
+        ai_res = await estimate_food_calories(query)
+        ai_res.validation_status = "ai_estimate"
+        return ai_res
+    except Exception as e:
+        logger.error(f"Error calculating AI food estimate: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not calculate AI food estimation: {str(e)}"
         )
 
 @router.get("/search", response_model=List[RecipeSearchResult])

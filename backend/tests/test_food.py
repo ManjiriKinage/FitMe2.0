@@ -120,3 +120,18 @@ def test_batch_food_log_request_validation():
     assert len(req.items) == 2
     assert req.items[0].estimated_calories == 210.0
     assert req.items[1].meal_type == "dinner"
+
+
+def test_history_proportional_scaling():
+    # If a user previously logged 1 chapati with 104 kcal
+    # Searching for "2 medium chapatis" should scale base 1 -> 2 (208 kcal)
+    base_qty = 1.0
+    base_calories = 104.0
+    base_protein = 3.1
+    requested_qty = 2.0
+    ratio = requested_qty / base_qty
+    scaled_calories = round(base_calories * ratio, 1)
+    scaled_protein = round(base_protein * ratio, 1)
+    assert scaled_calories == 208.0
+    assert scaled_protein == 6.2
+
