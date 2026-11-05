@@ -28,11 +28,6 @@ from app.services.image_analysis_service import ImageAnalysisService
 from app.services.vision_usage_tracker import VisionUsageTracker
 from app.services.nutrition_service import fetch_and_calculate_daily_dashboard
 from app.services.feedback_learning.dataset_curator import DatasetCurator
-from app.services.feedback_learning.model_pipeline import (
-    FitMeFoodPlateModel,
-    PeriodicModelEvaluator,
-    PeriodicFineTuningPipeline,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -453,6 +448,7 @@ async def evaluate_food_model(
     val_set = splits["val"] or splits["test"] or splits["train"]
 
     # Initialize model
+    from app.services.feedback_learning.model_pipeline import FitMeFoodPlateModel, PeriodicModelEvaluator
     model = FitMeFoodPlateModel(pretrained=False)
     metrics = PeriodicModelEvaluator.evaluate_model(model=model, dataset_entries=val_set)
     return ModelEvaluationResponse(**metrics)
@@ -471,6 +467,7 @@ async def trigger_periodic_finetuning(
     consented = DatasetCurator.fetch_consented_examples(client, limit=500)
     splits = DatasetCurator.partition_dataset_splits(consented)
 
+    from app.services.feedback_learning.model_pipeline import PeriodicFineTuningPipeline
     run_result = PeriodicFineTuningPipeline.run_periodic_finetuning(
         training_entries=splits["train"],
         validation_entries=splits["val"],

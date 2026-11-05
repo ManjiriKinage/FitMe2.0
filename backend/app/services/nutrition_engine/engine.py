@@ -12,7 +12,6 @@ import os
 import re
 import json
 import logging
-import pandas as pd
 from typing import Dict, Any, List, Optional
 
 from app.services.nutrition_engine.models import (
