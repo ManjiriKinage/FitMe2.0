@@ -37,7 +37,13 @@ logger = logging.getLogger(__name__)
 # Analysis & Model Configuration
 ANALYSIS_VERSION = "v1"
 MODEL_PROVIDER = "google"
-MODEL_VERSION = "gemini-flash-lite-latest"
+MODEL_VERSION = "gemini-3.1-flash-lite"
+FALLBACK_VISION_MODELS = [
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash-lite",
+    "gemini-3-flash-preview",
+    "gemini-3.6-flash",
+]
 STORAGE_BUCKET = "food_images"
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10MB
 MIN_IMAGE_BYTES = 100
@@ -313,7 +319,6 @@ class ImageAnalysisService:
         )
 
         user_prompt = f"Identify all food items on this {meal_type} plate with their estimated portions."
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_VERSION}:generateContent?key={settings.GEMINI_API_KEY}"
 
         payload = {
             "contents": [
@@ -335,30 +340,39 @@ class ImageAnalysisService:
             }
         }
 
-        try:
-            async with AsyncClient(timeout=15.0) as client:
-                resp = await client.post(url, json=payload)
-                if resp.status_code == 200:
-                    resp_json = resp.json()
-                    usage_meta = resp_json.get("usageMetadata", {})
-                    token_counts = {
-                        "prompt_tokens": int(usage_meta.get("promptTokenCount", 320)),
-                        "completion_tokens": int(usage_meta.get("candidatesTokenCount", 160))
-                    }
-                    candidates = resp_json.get("candidates", [])
-                    if candidates and "content" in candidates[0]:
-                        parts = candidates[0]["content"].get("parts", [])
-                        if parts and "text" in parts[0]:
-                            text_body = parts[0]["text"].strip()
-                            clean_json = re.sub(r"^```json\s*", "", text_body)
-                            clean_json = re.sub(r"\s*```$", "", clean_json).strip()
-                            data = json.loads(clean_json)
-                            validated_foods, overall_uncertainty = cls.parse_vision_response(data)
-                            if validated_foods:
-                                return validated_foods, overall_uncertainty, token_counts
-        except Exception as exc:
-            logger.warning(f"Gemini Vision call failed ({exc}). Using visual heuristics fallback.")
+        last_error = None
+        for model in FALLBACK_VISION_MODELS:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={settings.GEMINI_API_KEY}"
+            try:
+                async with AsyncClient(timeout=30.0) as client:
+                    resp = await client.post(url, json=payload)
+                    if resp.status_code == 200:
+                        resp_json = resp.json()
+                        usage_meta = resp_json.get("usageMetadata", {})
+                        token_counts = {
+                            "prompt_tokens": int(usage_meta.get("promptTokenCount", 320)),
+                            "completion_tokens": int(usage_meta.get("candidatesTokenCount", 160))
+                        }
+                        candidates = resp_json.get("candidates", [])
+                        if candidates and "content" in candidates[0]:
+                            parts = candidates[0]["content"].get("parts", [])
+                            if parts and "text" in parts[0]:
+                                text_body = parts[0]["text"].strip()
+                                clean_json = re.sub(r"^```json\s*", "", text_body)
+                                clean_json = re.sub(r"\s*```$", "", clean_json).strip()
+                                data = json.loads(clean_json)
+                                validated_foods, overall_uncertainty = cls.parse_vision_response(data)
+                                if validated_foods:
+                                    logger.info(f"Gemini Vision successfully identified {len(validated_foods)} dishes using {model}")
+                                    return validated_foods, overall_uncertainty, token_counts
+                    else:
+                        logger.warning(f"Model {model} returned HTTP {resp.status_code}: {resp.text[:150]}")
+                        last_error = f"HTTP {resp.status_code}"
+            except Exception as exc:
+                logger.warning(f"Vision call with {model} failed ({exc}).")
+                last_error = str(exc)
 
+        logger.error(f"All Gemini Vision models failed ({last_error}). Falling back to visual heuristics.")
         fallback_foods, fallback_unc = cls._visual_heuristics_fallback(meal_type)
         return fallback_foods, fallback_unc, token_counts
 

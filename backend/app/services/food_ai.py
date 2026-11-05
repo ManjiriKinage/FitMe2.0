@@ -97,8 +97,13 @@ async def estimate_food_calories(query: str) -> AIEstimateResponse:
         logger.info("No Gemini API key configured. Utilizing local nutrition knowledge base.")
         return heuristic_estimate(query)
 
-    # Try Gemini API via REST with official model fallback
-    models_to_try = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
+    # Try Gemini API via REST with official active model fallback
+    models_to_try = [
+        "gemini-3.1-flash-lite",
+        "gemini-3.5-flash-lite",
+        "gemini-3-flash-preview",
+        "gemini-3.6-flash",
+    ]
     
     payload = {
         "contents": [

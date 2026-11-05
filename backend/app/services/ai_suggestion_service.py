@@ -189,7 +189,12 @@ Return STRICT JSON ONLY conforming to:
   "explanation": "e.g. High in protein to help hit your target."
 }}
 """
-        models_to_try = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
+        models_to_try = [
+            "gemini-3.1-flash-lite",
+            "gemini-3.5-flash-lite",
+            "gemini-3-flash-preview",
+            "gemini-3.6-flash",
+        ]
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0.4, "maxOutputTokens": 300}
