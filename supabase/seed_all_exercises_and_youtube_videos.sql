@@ -266,3 +266,4 @@ BEGIN
 
     RAISE NOTICE 'Successfully seeded all exercises and activated all YouTube demo videos!';
 END $$;
+
