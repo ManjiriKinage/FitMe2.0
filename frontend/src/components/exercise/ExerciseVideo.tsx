@@ -117,12 +117,33 @@ export default function ExerciseVideo({
             .limit(1)
             .maybeSingle();
 
-          if (!isCancelled) {
-            setMedia(mediaRow as ExerciseMediaRecord | null);
+          if (!isCancelled && mediaRow) {
+            setMedia(mediaRow as ExerciseMediaRecord);
+            setLoading(false);
+            return;
           }
-        } else {
-          if (!isCancelled) setMedia(null);
         }
+
+        // 3. Direct Join Query by Slug fallback
+        if (exerciseSlug) {
+          const { data: slugMedia } = await supabase
+            .from("exercise_media")
+            .select("*, exercises!inner(id, slug)")
+            .eq("exercises.slug", exerciseSlug)
+            .eq("is_active", true)
+            .order("sort_order", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (!isCancelled && slugMedia) {
+            setMedia(slugMedia as ExerciseMediaRecord);
+            if (slugMedia.exercise_id) setActualExerciseId(slugMedia.exercise_id);
+            setLoading(false);
+            return;
+          }
+        }
+
+        if (!isCancelled) setMedia(null);
       } catch (err) {
         console.warn("Could not load exercise video:", err);
         if (!isCancelled) setMedia(null);
