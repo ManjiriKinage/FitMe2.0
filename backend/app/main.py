@@ -12,6 +12,7 @@ from app.api import (
     meals_router,
     water_router,
     progress_router,
+    exercise_router,
 )
 
 app = FastAPI(
@@ -67,6 +68,7 @@ app.include_router(dashboard_router, prefix="/api")
 app.include_router(meals_router, prefix="/api")
 app.include_router(water_router, prefix="/api")
 app.include_router(progress_router, prefix="/api")
+app.include_router(exercise_router, prefix="/api")
 
 @app.get("/health", tags=["System"])
 async def health_check():

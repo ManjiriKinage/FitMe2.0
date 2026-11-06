@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
 import { UserProfile, DashboardSummary, MealType, FoodLogItem } from "@/types";
@@ -13,6 +14,7 @@ import AISuggestionCard from "@/components/dashboard/AISuggestionCard";
 import FoodLogList from "@/components/FoodLogList";
 import FoodLogForm from "@/components/FoodLogForm";
 import MealScannerModal from "@/components/MealScannerModal";
+import { minutesNeeded, AddbackMode } from "@/lib/exercise";
 import {
   Search,
   Bell,
@@ -20,6 +22,8 @@ import {
   Plus,
   AlertCircle,
   Loader2,
+  Flame,
+  ArrowRight,
 } from "lucide-react";
 
 // Helpers for instantaneous Stale-While-Revalidate (SWR) cache
@@ -75,6 +79,8 @@ export default function DashboardHomePage() {
   // Initialize with cached data for instant 0ms render
   const [profile, setProfile] = useState<UserProfile | null>(() => getCachedProfile());
   const [dashboard, setDashboard] = useState<DashboardSummary | null>(() => getCachedDashboard(todayStr));
+  const [exerciseLogs, setExerciseLogs] = useState<any[]>([]);
+  const [exercisePrefs, setExercisePrefs] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(() => !getCachedDashboard(todayStr));
   const [error, setError] = useState<string | null>(null);
 
@@ -114,10 +120,16 @@ export default function DashboardHomePage() {
   // Background dashboard refresh that never flashes the full-screen loader
   const refreshDashboard = useCallback(async () => {
     try {
-      const dashboardData = await api.getDashboard(selectedDate);
+      const [dashboardData, logsRes] = await Promise.all([
+        api.getDashboard(selectedDate).catch(() => null),
+        api.getExerciseLogs(selectedDate).catch(() => ({ logs: [] })),
+      ]);
       if (dashboardData) {
         setDashboard(dashboardData);
         setCachedDashboard(selectedDate, dashboardData);
+      }
+      if (logsRes?.logs) {
+        setExerciseLogs(logsRes.logs);
       }
     } catch (err: any) {
       console.warn("Could not refresh dashboard in background:", err);
@@ -152,9 +164,21 @@ export default function DashboardHomePage() {
         return null;
       });
 
-      const [profileData, dashboardData] = await Promise.all([
+      const exerciseLogsPromise = api.getExerciseLogs(selectedDate).catch((err) => {
+        console.warn("Could not load exercise logs:", err);
+        return { logs: [] };
+      });
+
+      const exercisePrefsPromise = api.getExercisePrefs().catch((err) => {
+        console.warn("Could not load exercise prefs:", err);
+        return { prefs: null };
+      });
+
+      const [profileData, dashboardData, logsData, prefsData] = await Promise.all([
         profilePromise,
         dashboardPromise,
+        exerciseLogsPromise,
+        exercisePrefsPromise,
       ]);
 
       if (profileData) {
@@ -164,6 +188,12 @@ export default function DashboardHomePage() {
       if (dashboardData) {
         setDashboard(dashboardData);
         setCachedDashboard(selectedDate, dashboardData);
+      }
+      if (logsData?.logs) {
+        setExerciseLogs(logsData.logs);
+      }
+      if (prefsData?.prefs) {
+        setExercisePrefs(prefsData.prefs);
       }
     } catch (err: any) {
       setError(err.message || "Failed to load dashboard data.");
@@ -245,15 +275,24 @@ export default function DashboardHomePage() {
     0;
 
   const consumed = dashboard?.calories_consumed || 0;
+
+  // Exercise Credit & Net Calories calculation
+  const burnedToday = (exerciseLogs || []).reduce((acc: number, l: any) => acc + (Number(l.calories_burned) || 0), 0);
+  const addbackMode: AddbackMode = (exercisePrefs?.addback_mode as AddbackMode) || "all";
+  const dailyCap = exercisePrefs?.daily_cap ?? 500;
+  const multiplier = addbackMode === "off" ? 0 : addbackMode === "half" ? 0.5 : 1;
+  const exerciseCredit = Math.min(Math.round(burnedToday * multiplier), dailyCap);
+
+  const netConsumed = Math.max(0, consumed - exerciseCredit);
   const remaining =
     calorieTarget > 0
-      ? Math.max(0, calorieTarget - consumed)
+      ? Math.max(0, calorieTarget - netConsumed)
       : dashboard?.calories_remaining !== undefined
-      ? dashboard.calories_remaining
+      ? Math.max(0, dashboard.calories_remaining + exerciseCredit)
       : calorieTarget;
   const percentage =
     calorieTarget > 0
-      ? Math.min(100, Math.round((consumed / calorieTarget) * 100))
+      ? Math.min(100, Math.round((netConsumed / calorieTarget) * 100))
       : dashboard?.percentage_consumed || 0;
 
   // Dynamically compute evidence-based macro targets to keep in sync with active calorie target
@@ -261,6 +300,8 @@ export default function DashboardHomePage() {
     (profile?.fitness_goal as string) === "lose" ||
     profile?.fitness_goal === "lose_weight";
   const userWeight = profile?.current_weight_kg || 70;
+  const excessKcal = consumed > calorieTarget && calorieTarget > 0 ? Math.round(consumed - calorieTarget) : 0;
+  const walkMins = excessKcal > 0 ? minutesNeeded(excessKcal, 3.8, userWeight) : 0;
   const proteinTarget = Math.round(userWeight * (isLosing ? 1.6 : 1.2));
   const fatTarget = Math.round((calorieTarget * 0.25) / 9);
   const carbsTarget = Math.max(
@@ -401,6 +442,35 @@ export default function DashboardHomePage() {
           </div>
         )}
 
+        {/* Over-goal Exercise Suggestion Banner */}
+        {excessKcal > 0 && (
+          <aside
+            aria-label="Caloric Excess Notice"
+            className="bg-[#22332d] text-white rounded-[20px] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-[0_1px_3px_rgba(34,51,45,0.1)] border border-[#2e423a]"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 text-[#ffc872]">
+                <Flame className="w-5 h-5" aria-hidden="true" />
+              </div>
+              <div>
+                <div className="text-[15px] font-semibold text-white">
+                  You&apos;re {excessKcal} kcal over.
+                </div>
+                <div className="text-[13px] text-[#b7cdb9]">
+                  A {walkMins} minute brisk walk burns about that.
+                </div>
+              </div>
+            </div>
+            <Link
+              href="/exercise"
+              className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-full bg-[#7c9a7e] hover:bg-[#6e8a70] text-white font-semibold text-[13px] transition-colors self-start sm:self-auto flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-[#7c9a7e]"
+            >
+              <span>Burn it off</span>
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            </Link>
+          </aside>
+        )}
+
         {/* Top Grid Row: Calories & Macros (1.6fr) + Bio-Metrics (1fr) */}
         <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-6">
           <CaloriesAndMacrosCard
@@ -410,6 +480,7 @@ export default function DashboardHomePage() {
             percentage={percentage}
             macroTotals={macroTotals}
             macroTargets={effectiveMacroTargets}
+            exerciseCredit={exerciseCredit}
           />
 
           <MetabolicOverviewCard profile={effectiveProfile} />

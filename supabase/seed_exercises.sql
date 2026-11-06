@@ -357,3 +357,4 @@ ON CONFLICT (slug) DO UPDATE SET
     default_sets = EXCLUDED.default_sets,
     default_reps = EXCLUDED.default_reps,
     default_seconds = EXCLUDED.default_seconds;
+

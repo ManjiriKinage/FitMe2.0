@@ -363,5 +363,64 @@ export const api = {
       body: JSON.stringify({ weight_kg, logged_on }),
     });
   },
+
+  // Exercise & Workout Planning
+  getExercisePrefs: async (): Promise<{ prefs: any }> => {
+    return fetchWithAuth<{ prefs: any }>("/api/exercise/prefs");
+  },
+
+  updateExercisePrefs: async (payload: {
+    place?: string;
+    level?: string;
+    avoid_tags?: string[];
+    minutes_per_day?: number;
+    addback_mode?: string;
+    daily_cap?: number;
+  }): Promise<{ success: boolean; prefs: any }> => {
+    return fetchWithAuth<{ success: boolean; prefs: any }>("/api/exercise/prefs", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getExerciseCatalog: async (): Promise<{ exercises: any[] }> => {
+    return fetchWithAuth<{ exercises: any[] }>("/api/exercise/catalog");
+  },
+
+  getExerciseLogs: async (date?: string): Promise<{ logs: any[] }> => {
+    const params = date ? `?date=${encodeURIComponent(date)}` : "";
+    return fetchWithAuth<{ logs: any[] }>(`/api/exercise/logs${params}`);
+  },
+
+  logExerciseSession: async (payload: {
+    name: string;
+    started_at?: string;
+    ended_at?: string;
+    status?: string;
+    planned_seconds?: number;
+    completed_seconds: number;
+    met?: number;
+    weight_kg_used?: number;
+    calories_burned: number;
+  }): Promise<{ success: boolean; log: any }> => {
+    return fetchWithAuth<{ success: boolean; log: any }>("/api/exercise/logs", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getExerciseStats: async (): Promise<{
+    total_minutes: number;
+    active_days: number;
+    total_calories_burned: number;
+    log_count: number;
+  }> => {
+    return fetchWithAuth<{
+      total_minutes: number;
+      active_days: number;
+      total_calories_burned: number;
+      log_count: number;
+    }>("/api/exercise/stats");
+  },
 };
 

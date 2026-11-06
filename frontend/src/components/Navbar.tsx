@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Home, TrendingUp, Target, User, LogOut } from "lucide-react";
+import { Home, Dumbbell, TrendingUp, Target, User, LogOut } from "lucide-react";
 
 interface NavbarProps {
   onOpenAddFood?: () => void;
@@ -26,6 +26,7 @@ export default function Navbar({ userFullName }: NavbarProps) {
 
   const navItems = [
     { href: "/home", label: "Home", icon: Home },
+    { href: "/exercise", label: "Exercise", icon: Dumbbell },
     { href: "/progress", label: "Progress", icon: TrendingUp, badge: "1" },
     { href: "/goals", label: "Set up goals", icon: Target },
     { href: "/profile", label: "Profile", icon: User },

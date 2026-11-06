@@ -322,3 +322,4 @@ const hasAdvancedOrHighMet = lightWorkout.items.some((i) => {
 assert(!hasAdvancedOrHighMet, "Light workouts must not include advanced or high-intensity (>4.5 MET) exercises");
 
 console.log("\nAll exercise calculation and recommendation tests passed successfully! ✅");
+

@@ -7,6 +7,7 @@ from app.api.dashboard import router as dashboard_router
 from app.api.meals import router as meals_router
 from app.api.water import router as water_router
 from app.api.progress import router as progress_router
+from app.api.exercise import router as exercise_router
 
 __all__ = [
     "auth_router",
@@ -17,4 +18,5 @@ __all__ = [
     "meals_router",
     "water_router",
     "progress_router",
+    "exercise_router",
 ]

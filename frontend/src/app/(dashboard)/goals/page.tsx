@@ -35,6 +35,9 @@ export default function GoalsPage() {
   const [isCustomTargetOpen, setIsCustomTargetOpen] = useState(false);
   const [customCaloriesStr, setCustomCaloriesStr] = useState<string>("");
 
+  // Exercise Calorie Add-Back setting (Off / Half / All)
+  const [addbackMode, setAddbackMode] = useState<"off" | "half" | "all">("all");
+
   // Feedback messages
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -95,6 +98,16 @@ export default function GoalsPage() {
             if (directProfile.age) setAgeStr(String(directProfile.age));
             if (directProfile.target_weight_kg) setTargetWeightStr(String(directProfile.target_weight_kg));
           }
+        }
+
+        // Fetch exercise prefs for add-back setting
+        try {
+          const prefsRes = await api.getExercisePrefs();
+          if (prefsRes?.prefs?.addback_mode) {
+            setAddbackMode(prefsRes.prefs.addback_mode as "off" | "half" | "all");
+          }
+        } catch (prefErr) {
+          console.warn("Could not load exercise prefs:", prefErr);
         }
       } catch (err: any) {
         console.error("Error loading goals:", err);
@@ -252,6 +265,16 @@ export default function GoalsPage() {
         if (newBmr) localStorage.setItem("fitme_bmr", String(newBmr));
         if (newTdee) localStorage.setItem("fitme_tdee", String(newTdee));
         window.dispatchEvent(new Event("fitme_goals_updated"));
+      }
+
+      // 4. Update exercise calorie add-back setting
+      try {
+        await api.updateExercisePrefs({
+          addback_mode: addbackMode,
+          daily_cap: 500,
+        });
+      } catch (prefErr) {
+        console.warn("Could not save exercise prefs:", prefErr);
       }
 
       setSuccessMsg("Goal updated successfully! Target saved to dashboard.");
@@ -578,6 +601,65 @@ export default function GoalsPage() {
                     Very active · 6–7 days
                   </button>
                 </div>
+              </div>
+
+              {/* Exercise Calorie Add-Back Setting */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[13px] font-semibold text-[#3a4a43] block">
+                    Exercise calorie add-back
+                  </span>
+                  <span className="text-[11px] font-semibold text-[#5b6b64] bg-[#f4f8f5] px-2.5 py-0.5 rounded-full border border-[#eaf1ec]">
+                    Cap: 500 kcal/day
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAddbackMode("off")}
+                    className={`py-2.5 px-3 text-center rounded-[14px] border font-semibold text-[14px] transition-all ${
+                      addbackMode === "off"
+                        ? "bg-[#22332d] text-white border-[#22332d]"
+                        : "bg-white text-[#22332d] border-[#dfe6e1] hover:bg-[#f6f9f7]"
+                    }`}
+                  >
+                    Off
+                    <small className={`block text-[11px] font-normal mt-0.5 ${addbackMode === "off" ? "text-white/80" : "text-[#5b6b64]"}`}>
+                      0% added back
+                    </small>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAddbackMode("half")}
+                    className={`py-2.5 px-3 text-center rounded-[14px] border font-semibold text-[14px] transition-all ${
+                      addbackMode === "half"
+                        ? "bg-[#22332d] text-white border-[#22332d]"
+                        : "bg-white text-[#22332d] border-[#dfe6e1] hover:bg-[#f6f9f7]"
+                    }`}
+                  >
+                    Half
+                    <small className={`block text-[11px] font-normal mt-0.5 ${addbackMode === "half" ? "text-white/80" : "text-[#5b6b64]"}`}>
+                      50% added back
+                    </small>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAddbackMode("all")}
+                    className={`py-2.5 px-3 text-center rounded-[14px] border font-semibold text-[14px] transition-all ${
+                      addbackMode === "all"
+                        ? "bg-[#22332d] text-white border-[#22332d]"
+                        : "bg-white text-[#22332d] border-[#dfe6e1] hover:bg-[#f6f9f7]"
+                    }`}
+                  >
+                    All
+                    <small className={`block text-[11px] font-normal mt-0.5 ${addbackMode === "all" ? "text-white/80" : "text-[#5b6b64]"}`}>
+                      100% (Default)
+                    </small>
+                  </button>
+                </div>
+                <p className="text-[12px] text-[#5b6b64] mt-2 leading-relaxed">
+                  Adds calories burned during exercise back to your daily budget, capped at 500 kcal/day to protect weight loss progress.
+                </p>
               </div>
             </div>
 

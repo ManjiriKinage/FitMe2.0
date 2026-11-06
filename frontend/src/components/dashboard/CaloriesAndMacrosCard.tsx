@@ -9,6 +9,7 @@ interface CaloriesAndMacrosCardProps {
   percentage: number;
   macroTotals: DailyMacroTotals;
   macroTargets?: MacroTargets;
+  exerciseCredit?: number;
 }
 
 export default function CaloriesAndMacrosCard({
@@ -18,6 +19,7 @@ export default function CaloriesAndMacrosCard({
   percentage,
   macroTotals,
   macroTargets,
+  exerciseCredit,
 }: CaloriesAndMacrosCardProps) {
   // Default targets if not explicitly returned by API
   const defaultCarbsTarget = Math.round((calorieTarget * 0.5) / 4);
@@ -97,26 +99,38 @@ export default function CaloriesAndMacrosCard({
         {/* Right Stats & Macro Bars */}
         <div className="flex-1 min-w-[260px] flex flex-col gap-3.5">
           {/* Target & Eaten Summary Tiles */}
-          <div className="flex gap-3">
-            <div className="flex-1 bg-[#f4f8f5] rounded-[14px] p-3 sm:px-4 sm:py-3 border border-[#eaf1ec]">
-              <div className="text-[13px] text-[#5b6b64] font-semibold uppercase tracking-wider">
+          <div className="flex gap-2.5 flex-wrap sm:flex-nowrap">
+            <div className="flex-1 min-w-[90px] bg-[#f4f8f5] rounded-[14px] p-3 sm:px-3.5 sm:py-3 border border-[#eaf1ec]">
+              <div className="text-[12px] text-[#5b6b64] font-semibold uppercase tracking-wider">
                 Daily Goal
               </div>
-              <div className="font-bold text-[20px] text-[#22332d] mt-0.5">
+              <div className="font-bold text-[18px] sm:text-[20px] text-[#22332d] mt-0.5">
                 {Math.round(calorieTarget)}{" "}
-                <span className="text-[13px] text-[#5b6b64] font-normal">kcal</span>
+                <span className="text-[12px] text-[#5b6b64] font-normal">kcal</span>
               </div>
             </div>
 
-            <div className="flex-1 bg-[#f4f8f5] rounded-[14px] p-3 sm:px-4 sm:py-3 border border-[#eaf1ec]">
-              <div className="text-[13px] text-[#5b6b64] font-semibold uppercase tracking-wider">
+            <div className="flex-1 min-w-[90px] bg-[#f4f8f5] rounded-[14px] p-3 sm:px-3.5 sm:py-3 border border-[#eaf1ec]">
+              <div className="text-[12px] text-[#5b6b64] font-semibold uppercase tracking-wider">
                 Eaten
               </div>
-              <div className="font-bold text-[20px] text-[#22332d] mt-0.5">
+              <div className="font-bold text-[18px] sm:text-[20px] text-[#22332d] mt-0.5">
                 {Math.round(consumed)}{" "}
-                <span className="text-[13px] text-[#5b6b64] font-normal">kcal</span>
+                <span className="text-[12px] text-[#5b6b64] font-normal">kcal</span>
               </div>
             </div>
+
+            {exerciseCredit !== undefined && exerciseCredit > 0 && (
+              <div className="flex-1 min-w-[90px] bg-[#eaf1ec] rounded-[14px] p-3 sm:px-3.5 sm:py-3 border border-[#c8e6c9]/60">
+                <div className="text-[12px] text-[#2e7d32] font-semibold uppercase tracking-wider">
+                  Exercise
+                </div>
+                <div className="font-bold text-[18px] sm:text-[20px] text-[#1b5e20] mt-0.5">
+                  -{Math.round(exerciseCredit)}{" "}
+                  <span className="text-[12px] text-[#2e7d32] font-normal">kcal</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Carbohydrate Bar */}

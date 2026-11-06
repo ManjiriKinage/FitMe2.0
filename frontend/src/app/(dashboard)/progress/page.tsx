@@ -12,7 +12,7 @@ import {
   calculateWeeklyChange,
 } from "@/lib/progress";
 import { calculateDailyTarget } from "@/lib/nutrition";
-import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Dumbbell, Flame, Activity } from "lucide-react";
 
 interface WeightLog {
   id: string;
@@ -35,6 +35,17 @@ export default function ProgressPage() {
   const [profile, setProfile] = useState<any>(null);
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
   const [calorieTrend, setCalorieTrend] = useState<CalorieDayLog[]>([]);
+  const [exerciseStats, setExerciseStats] = useState<{
+    total_minutes: number;
+    active_days: number;
+    total_calories_burned: number;
+    log_count: number;
+  }>({
+    total_minutes: 0,
+    active_days: 0,
+    total_calories_burned: 0,
+    log_count: 0,
+  });
 
   const [inputWeight, setInputWeight] = useState<string>("70.0");
   const [inputDate, setInputDate] = useState<string>("");
@@ -65,10 +76,20 @@ export default function ProgressPage() {
 
       setInputDate(todayStr);
 
-      const res = await api.getProgressData().catch((err) => {
-        console.warn("api.getProgressData failed:", err);
-        return { profile: null, weight_logs: [], calorie_trend: [] };
-      });
+      const [res, statsRes] = await Promise.all([
+        api.getProgressData().catch((err) => {
+          console.warn("api.getProgressData failed:", err);
+          return { profile: null, weight_logs: [], calorie_trend: [] };
+        }),
+        api.getExerciseStats().catch((err) => {
+          console.warn("api.getExerciseStats failed:", err);
+          return { total_minutes: 0, active_days: 0, total_calories_burned: 0, log_count: 0 };
+        }),
+      ]);
+
+      if (statsRes) {
+        setExerciseStats(statsRes);
+      }
 
       let p = res.profile;
       if (!p || Object.keys(p).length === 0) {
@@ -370,6 +391,51 @@ export default function ProgressPage() {
             <span className="text-[13px] text-[#5b6b64] font-medium block">Estimated</span>
             <div className="text-[26px] font-bold text-[#22332d] mt-1">
               {estimatedWeeks}
+            </div>
+          </div>
+        </section>
+
+        {/* Exercise Activity Summary */}
+        <section
+          aria-label="Exercise Activity Overview"
+          className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6"
+        >
+          <div className="bg-white rounded-[24px] p-4 sm:p-5 shadow-[0_1px_3px_rgba(34,51,45,0.06)] border border-[#dfe6e1]/40 flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-[#eaf1ec] flex items-center justify-center text-[#22332d] flex-shrink-0">
+              <Dumbbell className="w-5 h-5 text-[#2e7d32]" aria-hidden="true" />
+            </div>
+            <div>
+              <span className="text-[12px] text-[#5b6b64] font-medium block">Active days</span>
+              <div className="text-[22px] sm:text-[24px] font-bold text-[#22332d] mt-0.5">
+                {exerciseStats.active_days}{" "}
+                <span className="text-[13px] font-normal text-[#5b6b64]">days</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[24px] p-4 sm:p-5 shadow-[0_1px_3px_rgba(34,51,45,0.06)] border border-[#dfe6e1]/40 flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-[#eaf1ec] flex items-center justify-center text-[#22332d] flex-shrink-0">
+              <Activity className="w-5 h-5 text-[#7c9a7e]" aria-hidden="true" />
+            </div>
+            <div>
+              <span className="text-[12px] text-[#5b6b64] font-medium block">Exercise time</span>
+              <div className="text-[22px] sm:text-[24px] font-bold text-[#22332d] mt-0.5">
+                {exerciseStats.total_minutes}{" "}
+                <span className="text-[13px] font-normal text-[#5b6b64]">mins</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="col-span-2 md:col-span-1 bg-white rounded-[24px] p-4 sm:p-5 shadow-[0_1px_3px_rgba(34,51,45,0.06)] border border-[#dfe6e1]/40 flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-[#eaf1ec] flex items-center justify-center text-[#22332d] flex-shrink-0">
+              <Flame className="w-5 h-5 text-[#e65100]" aria-hidden="true" />
+            </div>
+            <div>
+              <span className="text-[12px] text-[#5b6b64] font-medium block">Calories burned</span>
+              <div className="text-[22px] sm:text-[24px] font-bold text-[#22332d] mt-0.5">
+                {exerciseStats.total_calories_burned}{" "}
+                <span className="text-[13px] font-normal text-[#5b6b64]">kcal</span>
+              </div>
             </div>
           </div>
         </section>
