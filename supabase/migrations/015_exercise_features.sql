@@ -101,3 +101,4 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS idx_exercise_logs_user_date ON public.exercise_logs (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_exercises_slug ON public.exercises (slug);
+

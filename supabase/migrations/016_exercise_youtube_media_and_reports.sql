@@ -75,3 +75,4 @@ CREATE INDEX IF NOT EXISTS idx_exercise_media_exercise_active_sort
 
 CREATE INDEX IF NOT EXISTS idx_media_reports_user_id 
     ON public.media_reports (user_id);
+

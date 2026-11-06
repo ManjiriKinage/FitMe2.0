@@ -42,3 +42,4 @@ WHERE e.slug IN (
     'yoga-flow',
     'stair-climbing'
 );
+
