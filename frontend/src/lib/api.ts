@@ -422,5 +422,25 @@ export const api = {
       log_count: number;
     }>("/api/exercise/stats");
   },
+
+  getExerciseMedia: async (params: {
+    exercise_id?: string;
+    slug?: string;
+  }): Promise<{ media: any | null }> => {
+    const q = new URLSearchParams();
+    if (params.exercise_id) q.set("exercise_id", params.exercise_id);
+    if (params.slug) q.set("slug", params.slug);
+    return fetchWithAuth<{ media: any | null }>(`/api/exercise/media?${q.toString()}`);
+  },
+
+  reportMediaProblem: async (payload: {
+    exercise_id: string;
+    media_id?: string;
+  }): Promise<{ success: boolean; report?: any }> => {
+    return fetchWithAuth<{ success: boolean; report?: any }>("/api/exercise/media/report", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
 };
 

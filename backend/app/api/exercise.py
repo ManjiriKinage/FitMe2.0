@@ -30,6 +30,10 @@ class ExerciseLogPayload(BaseModel):
     weight_kg_used: Optional[float] = None
     calories_burned: float = 0.0
 
+class MediaReportPayload(BaseModel):
+    exercise_id: str
+    media_id: Optional[str] = None
+
 @router.get("/prefs")
 async def get_exercise_prefs(user: Dict[str, Any] = Depends(get_current_user)):
     """Fetch user's exercise preferences."""
@@ -171,3 +175,56 @@ async def get_exercise_stats(user: Dict[str, Any] = Depends(get_current_user)):
             "total_calories_burned": 0,
             "log_count": 0
         }
+
+@router.get("/media")
+async def get_exercise_media(
+    exercise_id: Optional[str] = Query(None),
+    slug: Optional[str] = Query(None),
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Fetch the first active demo media for an exercise (lowest sort_order)."""
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
+    try:
+        ex_id = exercise_id
+        if not ex_id and slug:
+            ex_res = client.table("exercises").select("id").eq("slug", slug).limit(1).execute()
+            if ex_res.data and len(ex_res.data) > 0:
+                ex_id = ex_res.data[0]["id"]
+        
+        if ex_id:
+            res = (
+                client.table("exercise_media")
+                .select("*")
+                .eq("exercise_id", ex_id)
+                .eq("is_active", True)
+                .order("sort_order", desc=False)
+                .limit(1)
+                .execute()
+            )
+            if res.data and len(res.data) > 0:
+                return {"media": res.data[0]}
+    except Exception as e:
+        logger.debug(f"Could not load exercise media: {e}")
+    
+    return {"media": None}
+
+@router.post("/media/report")
+async def report_exercise_media(
+    payload: MediaReportPayload,
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Store a user problem report for an exercise demo video."""
+    client = get_supabase_admin_client(user) or get_supabase_anon_client()
+    try:
+        row = {
+            "user_id": user["id"],
+            "exercise_id": payload.exercise_id,
+            "media_id": payload.media_id,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        res = client.table("media_reports").insert(row).execute()
+        return {"success": True, "report": res.data[0] if res.data else row}
+    except Exception as e:
+        logger.warning(f"Could not submit media report: {e}")
+        return {"success": False, "error": str(e)}
+

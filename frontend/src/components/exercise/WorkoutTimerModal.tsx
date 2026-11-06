@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { WorkoutPlanItem, caloriesBurned } from "@/lib/exercise";
 import { api } from "@/lib/api";
+import HowToPanel from "@/components/exercise/HowToPanel";
 import {
   Play,
   Pause,
@@ -44,6 +45,7 @@ export default function WorkoutTimerModal({
   const [isPaused, setIsPaused] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [isHowToOpen, setIsHowToOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -372,10 +374,20 @@ export default function WorkoutTimerModal({
             </div>
 
             {/* Current Exercise Context */}
-            <div className="w-full bg-[#f4f8f5] rounded-[18px] p-4 text-center border border-[#eaf1ec] flex flex-col gap-1">
-              <span className="text-[12px] font-bold text-[#5b6b64] uppercase tracking-wider">
-                Move {currentIdx + 1} of {planItems.length}
-              </span>
+            <div className="w-full bg-[#f4f8f5] rounded-[18px] p-4 text-center border border-[#eaf1ec] flex flex-col gap-1.5 relative">
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] font-bold text-[#5b6b64] uppercase tracking-wider">
+                  Move {currentIdx + 1} of {planItems.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsHowToOpen(true)}
+                  className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#22332d] hover:text-[#7c9a7e] px-2.5 py-0.5 rounded-full bg-white border border-[#dfe6e1] transition-colors"
+                >
+                  <span>How to</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
               <h4 className="text-[18px] font-bold text-[#22332d] m-0">
                 {currentMove.name}
               </h4>
@@ -417,6 +429,20 @@ export default function WorkoutTimerModal({
           </>
         )}
 
+        {/* How-To Panel Modal invoked from Current Move */}
+        {isHowToOpen && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
+            <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto my-auto">
+              <HowToPanel
+                item={currentMove}
+                currentIndex={currentIdx}
+                totalItems={planItems.length}
+                onClose={() => setIsHowToOpen(false)}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Exit Confirmation Dialog */}
         {showExitConfirm && (
           <div className="absolute inset-0 bg-white/95 rounded-[28px] p-6 flex flex-col items-center justify-center text-center z-10">
@@ -447,3 +473,4 @@ export default function WorkoutTimerModal({
     </div>
   );
 }
+

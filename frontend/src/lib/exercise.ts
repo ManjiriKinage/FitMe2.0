@@ -45,6 +45,7 @@ export interface WorkoutAnswers {
 }
 
 export interface WorkoutPlanItem {
+  id?: string;
   order: number;
   slug: string;
   name: string;
@@ -322,6 +323,7 @@ export function recommendWorkout(params: {
     }
 
     return {
+      id: ex.id,
       order: idx + 1,
       slug: ex.slug,
       name: ex.name,

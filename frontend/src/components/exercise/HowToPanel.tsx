@@ -1,25 +1,14 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef } from "react";
 import { WorkoutPlanItem } from "@/lib/exercise";
-import { Play, Pause, AlertTriangle, ShieldAlert, X, ChevronRight, VolumeX } from "lucide-react";
-
-interface ExerciseMedia {
-  type?: "video" | "image";
-  url?: string;
-  youtube_id?: string;
-  poster_url?: string;
-  author?: string;
-  license_name?: string;
-  license_url?: string;
-  source_url?: string;
-}
+import { AlertTriangle, ShieldAlert, X, ChevronRight, Play } from "lucide-react";
+import ExerciseVideo from "@/components/exercise/ExerciseVideo";
 
 interface HowToPanelProps {
   item: WorkoutPlanItem;
   currentIndex: number;
   totalItems: number;
-  media?: ExerciseMedia | null;
   onClose: () => void;
   onNext?: () => void;
   onStartSetTimer?: (item: WorkoutPlanItem) => void;
@@ -29,67 +18,11 @@ export default function HowToPanel({
   item,
   currentIndex,
   totalItems,
-  media,
   onClose,
   onNext,
   onStartSetTimer,
 }: HowToPanelProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  const [loadYouTube, setLoadYouTube] = useState(false);
-
-  // Check prefers-reduced-motion
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-      setPrefersReducedMotion(mediaQuery.matches);
-      const listener = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
-      mediaQuery.addEventListener("change", listener);
-      return () => mediaQuery.removeEventListener("change", listener);
-    }
-  }, []);
-
-  // Pause video when offscreen using IntersectionObserver
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || prefersReducedMotion) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            video.play().catch(() => {});
-            setIsPlaying(true);
-          } else {
-            video.pause();
-            setIsPlaying(false);
-          }
-        });
-      },
-      { threshold: 0.3 }
-    );
-
-    observer.observe(video);
-    return () => observer.disconnect();
-  }, [prefersReducedMotion, item.slug]);
-
-  const togglePlayPause = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.paused) {
-      video.play().catch(() => {});
-      setIsPlaying(true);
-    } else {
-      video.pause();
-      setIsPlaying(false);
-    }
-  };
-
-  const hasVideoUrl = media?.type === "video" && media.url && !prefersReducedMotion;
-  const hasYouTube = Boolean(media?.youtube_id);
-  const posterUrl = media?.poster_url;
 
   return (
     <div
@@ -97,77 +30,14 @@ export default function HowToPanel({
       className="bg-white rounded-[24px] p-6 shadow-[0_1px_3px_rgba(34,51,45,0.06)] border border-[#dfe6e1]/40 grid grid-cols-1 lg:grid-cols-[1fr_1.25fr] gap-7 items-start transition-all"
       aria-label={`How to do ${item.name}`}
     >
-      {/* Left Column: Media / Animation Display */}
-      <div className="flex flex-col gap-3">
-        <div className="relative w-full h-[250px] sm:h-[280px] bg-[#2d4238] rounded-[24px] overflow-hidden flex flex-col items-center justify-center text-white select-none">
-          {hasYouTube ? (
-            loadYouTube ? (
-              <iframe
-                src={`https://www.youtube-nocookie.com/embed/${media?.youtube_id}?rel=0&modestbranding=1`}
-                title={`${item.name} demonstration`}
-                className="w-full h-full border-0"
-                allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center">
-                <button
-                  type="button"
-                  onClick={() => setLoadYouTube(true)}
-                  className="w-16 h-16 rounded-full bg-[#7c9a7e] flex items-center justify-center hover:bg-[#68856a] transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-white"
-                  aria-label="Load video demo"
-                >
-                  <Play className="w-7 h-7 text-white fill-current ml-0.5" />
-                </button>
-                <b className="mt-3 text-[15px] font-bold">Watch Video Guide</b>
-                <span className="text-[12px] text-[#b7cdb9] mt-1">Privacy-friendly YouTube embed</span>
-              </div>
-            )
-          ) : hasVideoUrl ? (
-            <>
-              <video
-                ref={videoRef}
-                src={media.url}
-                poster={posterUrl}
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                className="w-full h-full object-cover"
-                aria-label={`${item.name} looping demonstration`}
-              />
-              <button
-                type="button"
-                onClick={togglePlayPause}
-                className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
-                aria-label={isPlaying ? "Pause video" : "Play video"}
-              >
-                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-              </button>
-              <div className="absolute top-3 left-3 bg-black/60 text-white px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1.5 pointer-events-none">
-                <VolumeX className="w-3.5 h-3.5" />
-                <span>Muted loop</span>
-              </div>
-            </>
-          ) : posterUrl || prefersReducedMotion ? (
-            <img
-              src={posterUrl || "/images/exercise-placeholder.svg"}
-              alt={`Demonstration of ${item.name}`}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            /* Clean Design Mockup Placeholder matching attached HTML */
-            <div className="flex flex-col items-center justify-center text-center p-4">
-              <div className="w-16 h-16 rounded-full bg-[#7c9a7e] flex items-center justify-center mb-2 shadow-sm">
-                <Play className="w-7 h-7 text-white fill-current ml-0.5" aria-hidden="true" />
-              </div>
-              <b className="text-[16px] font-bold">Looping demo</b>
-              <span className="text-[12px] text-[#b7cdb9] mt-1 font-medium">
-                Short movement guide · 8 seconds
-              </span>
-            </div>
-          )}
-        </div>
+      {/* Left Column: Video Demonstration & Muscles Badges */}
+      <div className="flex flex-col gap-3.5">
+        {/* YouTube Demo Player */}
+        <ExerciseVideo
+          exerciseId={item.id}
+          exerciseSlug={item.slug}
+          exerciseName={item.name}
+        />
 
         {/* Muscles & Prescription Badges */}
         <div className="flex gap-2 flex-wrap items-center mt-1">
@@ -189,45 +59,9 @@ export default function HowToPanel({
           </span>
         </div>
 
-        {/* Media Attribution & License */}
-        <p className="text-[12px] text-[#5b6b64] leading-normal">
-          {media?.author ? (
-            <>
-              Demo credit:{" "}
-              {media.source_url ? (
-                <a
-                  href={media.source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-[#22332d]"
-                >
-                  {media.author}
-                </a>
-              ) : (
-                <span>{media.author}</span>
-              )}{" "}
-              {media.license_name && (
-                <>
-                  (
-                  {media.license_url ? (
-                    <a
-                      href={media.license_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline hover:text-[#22332d]"
-                    >
-                      {media.license_name}
-                    </a>
-                  ) : (
-                    media.license_name
-                  )}
-                  )
-                </>
-              )}
-            </>
-          ) : (
-            <span>Movement guide and verified clinical safety cues.</span>
-          )}
+        {/* Clinical Note */}
+        <p className="text-[12px] text-[#5b6b64] leading-normal m-0">
+          Movement guide with verified clinical safety cues. Calories burned are estimates.
         </p>
       </div>
 
@@ -334,3 +168,4 @@ export default function HowToPanel({
     </div>
   );
 }
+
