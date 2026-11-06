@@ -36,6 +36,10 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'exercise_media' AND column_name = 'sort_order') THEN
         ALTER TABLE public.exercise_media ADD COLUMN sort_order INT DEFAULT 0;
     END IF;
+
+    -- Update type check constraint to permit 'youtube'
+    ALTER TABLE public.exercise_media DROP CONSTRAINT IF EXISTS exercise_media_type_check;
+    ALTER TABLE public.exercise_media ADD CONSTRAINT exercise_media_type_check CHECK (type IN ('youtube', 'video', 'image'));
 END $$;
 
 -- 2. Restrict exercise_media permissions:

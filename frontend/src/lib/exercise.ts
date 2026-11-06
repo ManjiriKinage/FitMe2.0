@@ -221,11 +221,14 @@ export function recommendWorkout(params: {
       }
     }
 
-    // B. Place filter
+    // B. Place filter (gym includes gym and bodyweight home moves)
     if (userPlace.includes("home") && ex.place !== "home") {
       return false;
     }
     if (userPlace.includes("outdoor") && ex.place !== "outdoors" && ex.category !== "cardio") {
+      return false;
+    }
+    if (userPlace.includes("gym") && ex.place !== "gym" && ex.place !== "home") {
       return false;
     }
 
@@ -235,8 +238,8 @@ export function recommendWorkout(params: {
       if (ex.avoid_tags.includes("joint") || ex.avoid_tags.includes("back")) return false;
     }
 
-    // D. User level filter (beginners don't get advanced exercises)
-    if (userLevel === "beginner" && ex.level === "advanced") {
+    // D. User level filter (beginners and regular don't get advanced exercises)
+    if ((userLevel === "beginner" || userLevel === "regular") && ex.level === "advanced") {
       return false;
     }
 
@@ -265,11 +268,7 @@ export function recommendWorkout(params: {
     pool = [safeWalk];
   }
 
-  // 3. Assemble balanced plan: 3-5 movements fitting the chosen duration
-  // E.g. for 30 minutes: 5 movements (6 mins each)
-  // 15 minutes: 3 movements (5 mins each)
-  // 45 minutes: 5 movements (9 mins each)
-  // 60 minutes: 5 movements (12 mins each)
+  // 3. Assemble balanced plan: 3-5 movements fitting the chosen duration and user goal
   let targetMoveCount = 5;
   if (timeMinutes <= 20) {
     targetMoveCount = 3;
@@ -277,24 +276,45 @@ export function recommendWorkout(params: {
     targetMoveCount = 5;
   }
 
-  // Pick distinct moves from pool
+  const userGoal = (answers.goal || "burn").toLowerCase();
   const selectedMoves: Exercise[] = [];
-  // Prioritize cardio/warm-up, strength moves, and cool-down
+
   const cardios = pool.filter((e) => e.category === "cardio");
   const strengths = pool.filter((e) => e.category === "strength");
   const mobilities = pool.filter((e) => e.category === "mobility");
 
-  // Push up to 3 strength moves if available
-  for (const s of strengths) {
-    if (selectedMoves.length < targetMoveCount - 1 && !selectedMoves.some((m) => m.slug === s.slug)) {
-      selectedMoves.push(s);
+  // Selection tailored to selected goal:
+  if (userGoal.includes("strength")) {
+    // Prioritize strength exercises
+    for (const s of strengths) {
+      if (selectedMoves.length < targetMoveCount - 1 && !selectedMoves.some((m) => m.slug === s.slug)) {
+        selectedMoves.push(s);
+      }
     }
-  }
-
-  // Fill remaining slots with cardio / mobility
-  for (const c of [...cardios, ...mobilities, ...pool]) {
-    if (selectedMoves.length < targetMoveCount && !selectedMoves.some((m) => m.slug === c.slug)) {
-      selectedMoves.push(c);
+    for (const c of [...mobilities, ...cardios, ...pool]) {
+      if (selectedMoves.length < targetMoveCount && !selectedMoves.some((m) => m.slug === c.slug)) {
+        selectedMoves.push(c);
+      }
+    }
+  } else if (userGoal.includes("burn")) {
+    // Prioritize high calorie burn (cardio & high MET)
+    const sortedBurn = [...pool].sort((a, b) => b.met - a.met);
+    for (const b of sortedBurn) {
+      if (selectedMoves.length < targetMoveCount && !selectedMoves.some((m) => m.slug === b.slug)) {
+        selectedMoves.push(b);
+      }
+    }
+  } else {
+    // Stay active: balanced mix of mobility, strength, and cardio
+    for (const s of strengths) {
+      if (selectedMoves.length < 2 && !selectedMoves.some((m) => m.slug === s.slug)) {
+        selectedMoves.push(s);
+      }
+    }
+    for (const c of [...cardios, ...mobilities, ...pool]) {
+      if (selectedMoves.length < targetMoveCount && !selectedMoves.some((m) => m.slug === c.slug)) {
+        selectedMoves.push(c);
+      }
     }
   }
 
